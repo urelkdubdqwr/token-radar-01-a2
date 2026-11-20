@@ -20,7 +20,7 @@
 // log-residual of that category's liveX peersX, shrunk toward 1 so a thin category cannot swing a
 // row. No protocol name is ever special-cased: the same function scores every row.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildDossier } from '../vendor/makefun-board.ts';
 
@@ -1365,6 +1365,7 @@ function copyFilesX(from: string, to: string): string[] {
     if (name.startsWith('.')) continue;
     const pathX = join(from, name);
     if (!statSync(pathX).isFile()) continue;
+    rmSync(join(to, name), { force: true });
     copyFileSync(pathX, join(to, name));
     copiedX.push(name);
   }

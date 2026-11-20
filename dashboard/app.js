@@ -200,7 +200,7 @@
     var segsX = (aX.bars || []).map(function (bX) {
       var pctX = aX.total ? (bX.count / aX.total * 100) : 0;
       return h('div', { class: 'acct-seg', style: 'flex:' + bX.count + ' 0 0;background:' + bX.color, title: bX.label + ': ' + bX.count },
-        h('span', null, bX.count));
+        h('span', null, String(bX.count)));
     });
     var keysX = (aX.bars || []).map(function (bX) {
       return h('li', null, h('i', { style: 'background:' + bX.color }), h('span', { class: 'acct-lbl' }, bX.label), h('b', null, String(bX.count)));
@@ -266,8 +266,8 @@
     var curve = svg('path', { d: 'M ' + sxX(x0X).toFixed(1) + ' ' + syX(laX + FITX.elasticity * x0X).toFixed(1) + ' L ' + sxX(x1).toFixed(1) + ' ' + syX(laX + FITX.elasticity * x1).toFixed(1), stroke: '#6ea8ff', 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' });
     sX.appendChild(curve);
     ptsX.forEach(function (pX) {
-      if (pX.kind === 'live') sX.appendChild(svg('circle', { cx: sxX(pX.xX).toFixed(1), cy: syX(pX.y).toFixed(1), r: 2, fill: '#8ba0c2' }));
-      else sX.appendChild(svg('rect', { x: (sxX(pX.xX) - 3).toFixed(1), y: (syX(pX.y) - 3).toFixed(1), width: 6, height: 6, fill: '#38e0c8' }));
+      if (pX.kind === 'live') sX.appendChild(svg('circle', { cx: sxX(pX.x).toFixed(1), cy: syX(pX.y).toFixed(1), r: 2, fill: '#8ba0c2' }));
+      else sX.appendChild(svg('rect', { x: (sxX(pX.x) - 3).toFixed(1), y: (syX(pX.y) - 3).toFixed(1), width: 6, height: 6, fill: '#38e0c8' }));
     });
     // annotate the two axes
     sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'middle' }, 'TVL (log₁₀ dollars)'));
@@ -313,7 +313,7 @@
 
   function verdictCard() {
     var farmX = 0, marginal = 0, skip = 0;
-    DATAX.rows.forEach(function (rX) { if (rX.verdictX === 'farm') farmX++; else if (rX.verdictX === 'marginal') marginal++; else skip++; });
+    DATAX.rows.forEach(function (rX) { if (rX.verdict === 'farm') farmX++; else if (rX.verdict === 'marginal') marginal++; else skip++; });
     var bestX = null;
     DATAX.rows.forEach(function (rX) { if (bestX === null || rX.net_per_hour > bestX.net_per_hour) bestX = rX; });
     return card('Netted verdicts', 'the model\'s plain reading of each ranked row',
@@ -321,7 +321,7 @@
         verdictPill('farm', farmX, 'clears its costs'),
         verdictPill('marginal', marginal, 'clears only at the upper band'),
         verdictPill('skip', skip, 'the band cannot clear it')),
-      bestX ? h('p', { class: 'note' }, 'Best net per hour: ' + bestX.name + ' at ' + fmtMoney(bestX.net_per_hour, 2) + ' an hour (verdict ' + bestX.verdictX + ').') : null);
+      bestX ? h('p', { class: 'note' }, 'Best net per hour: ' + bestX.name + ' at ' + fmtMoney(bestX.net_per_hour, 2) + ' an hour (verdict ' + bestX.verdict + ').') : null);
   }
   function verdictPill(kind, nX, sub) { return h('div', { class: 'verdict-pill ' + kind }, h('b', null, String(nX)), h('span', null, kind), h('em', null, sub)); }
 
@@ -378,7 +378,7 @@
     });
     var keyX = stateX.sort, dir = stateX.dir;
     outX.sort(function (aX, bX) {
-      var xX = value(rX, keyX), y = value(bX, keyX);
+      var xX = value(aX, keyX), y = value(bX, keyX);
       if (typeof xX === 'string') return (xX < y ? -1 : xX > y ? 1 : 0) * dir;
       return (xX - y) * dir;
     });
@@ -442,7 +442,7 @@
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_label || '—'));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
-        cellsX.push(h('td', null, rX.verdictX === undefined ? '—' : h('span', { class: 'pill verdict-' + rX.verdictX }, rX.verdictX)));
+        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'pill verdict-' + rX.verdict }, rX.verdict)));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
     });
@@ -556,11 +556,11 @@
 
   // Escape acts as a shortcut that dismisses whichever detail panel is currently open.
   document.addEventListener('keydown', function (e) {
-    if (e.keyX === 'Escape') closeDrawer();
+    if (e.key === 'Escape') closeDrawer();
   });
 
   var builtX = buildDrawer();
   stageX = view();
   appX.appendChild(stageX);
-  builtX.forEach(function (nX) { document.bodyX.appendChild(nX); });
+  builtX.forEach(function (nX) { document.body.appendChild(nX); });
 })();
