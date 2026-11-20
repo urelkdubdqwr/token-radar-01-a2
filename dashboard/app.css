@@ -142,6 +142,12 @@ footer { margin-top: calc(var(--u) * 5); color: var(--dim); font-size: 11.5px; b
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
 
+/* Token-odds pill — keyed to the base rate: hot above twice it, cold below half. */
+.odds-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); } /* odds chip */
+.odds-hi { color: var(--accent); border-color: #2b5c66; background: #0e2b2a; } /* strong odds */
+.odds-mid { color: var(--muted); } /* around the base rate */
+.odds-lo { color: var(--dim); } /* weak odds */
+
 /* Verdict pills and the strip — sized like a chain chip, one colour per verdict. */
 .verdict-strip { display: flex; flex-wrap: wrap; gap: calc(var(--u)); } /* strip of verdicts */
 .verdict-pill { display: inline-flex; align-items: baseline; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 11px; } /* verdict chip */

@@ -146,6 +146,26 @@ export interface FeatureLooX {
   kept: boolean;
 }
 
+/**
+ * The fitted token-odds model. A small logistic regression over the features every protocol carries — how
+ * long it has gone without a token, its seven-day growth, and its category's own base rate of launched
+ * tokens — rescaled so the mean stated odds matches the snapshot's base rate. `base_rate` is that base
+ * rate; `brier` scores the stated odds against the actual outcome across the fitted set; `n` is the fit's size.
+ */
+export interface TokenOddsX {
+  weights: { intercept: number; age: number; growth: number; category: number };
+  base_rate: number;
+  brier: number;
+  n: number;
+  positives: number;
+  scales: {
+    age_mean: number; age_sd: number;
+    growth_mean: number; growth_sd: number;
+    cat_mean: number; cat_sd: number;
+    cat_rate: Record<string, number>;
+  };
+}
+
 const MIN_PEERSX = 3;
 
 /** Middle value of a set of finite numbers; null if there are none. */
@@ -414,6 +434,107 @@ function featureLooX(pairs: SnapshotProtocolX[], asOf: string, model: ModelConst
   });
 }
 
+/**
+ * A deterministic token-odds fit, from the snapshot's own record alone. A logistic regression is trained by
+ * plain gradient descent on three features every protocol carries — a standardised no-token age, the
+ * seven-day growth, and the category's base rate of protocols that did launch a token — with the label being
+ * whether the protocol already records a token. The fitted probabilities are then rescaled by a single
+ * multiplicative odds factor so the mean stated odds matches the base rate exactly (calibration in the mean).
+ * The Brier score grades those calibrated odds against the actual outcome on the same fitted set. Every step
+ * is fixed: no randomness, no clock, the same snapshot yields the same weights.
+ */
+function fitTokenOddsX(snapshotX: SnapshotX, model: ModelConstantsX): TokenOddsX {
+  const protosX = snapshotX.protocols;
+  const nX = protosX.length;
+  const hasTokenX = protosX.map((pX) => !isPreTokenX(pX));
+  const positivesX = hasTokenX.filter(Boolean).length;
+  const baseRateX = nX === 0 ? 0 : positivesX / nX;
+  // Category base rate: the share of each category's protocols that already record a token.
+  const catTotalsX = new Map<string, { n: number; pos: number }>();
+  protosX.forEach((pX, i) => {
+    const keyX = pX.category ?? 'unlisted';
+    const accX = catTotalsX.get(keyX) ?? { n: 0, pos: 0 };
+    accX.n += 1;
+    if (hasTokenX[i]) accX.pos += 1;
+    catTotalsX.set(keyX, accX);
+  });
+  const rawAgeX = protosX.map((pX) => (ageDaysX(snapshotX.as_of, pX.listed_at) ?? model.unknown_age_days));
+  const rawGrowthX = protosX.map((pX) => Math.min(model.growth_cap, Math.max(model.growth_floor, pX.change_7d ?? 0)));
+  const rawCatX = protosX.map((pX) => {
+    const accX = catTotalsX.get(pX.category ?? 'unlisted');
+    return accX === undefined || accX.n === 0 ? baseRateX : accX.pos / accX.n;
+  });
+  // Standardise each feature so one gradient step treats them alike; a zero spread leaves the column at 0.
+  const standardiseX = (vals: number[]): { z: number[]; mean: number; sd: number } => {
+    const mean = vals.reduce((aX, bX) => aX + bX, 0) / (vals.length || 1);
+    const sd = Math.sqrt(vals.reduce((aX, bX) => aX + (bX - mean) * (bX - mean), 0) / (vals.length || 1)) || 1;
+    return { z: vals.map((vX) => (vX - mean) / sd), mean, sd };
+  };
+  const ageZ = standardiseX(rawAgeX);
+  const growthZ = standardiseX(rawGrowthX);
+  const catZ = standardiseX(rawCatX);
+  const rowsX = protosX.map((_pX, i) => [1, ageZ.z[i]!, growthZ.z[i]!, catZ.z[i]!]);
+  // Gradient descent: a fixed learning rate and a fixed number of steps keep the fit deterministic.
+  const wX = [0, 0, 0, 0];
+  const lrX = 0.5;
+  const stepsX = 400;
+  for (let step = 0; step < stepsX; step++) {
+    const gradX = [0, 0, 0, 0];
+    for (let i = 0; i < rowsX.length; i++) {
+      const rX = rowsX[i]!;
+      let zX = 0;
+      for (let j = 0; j < 4; j++) zX += wX[j]! * rX[j]!;
+      const pX = 1 / (1 + Math.exp(-zX));
+      const errX = pX - (hasTokenX[i] ? 1 : 0);
+      for (let j = 0; j < 4; j++) gradX[j]! += errX * rX[j]!;
+    }
+    for (let j = 0; j < 4; j++) wX[j]! -= (lrX * gradX[j]!) / (rowsX.length || 1);
+  }
+  // Calibration in the mean: one odds factor so the average stated probability equals the base rate.
+  const rawOddsX = rowsX.map((rX) => Math.exp(Math.min(60, Math.max(-60, wX[0]! * rX[0]! + wX[1]! * rX[1]! + wX[2]! * rX[2]! + wX[3]! * rX[3]!))));
+  const meanRawX = rawOddsX.reduce((aX, bX) => aX + bX, 0) / (rawOddsX.length || 1) || 1;
+  const targetOddsX = baseRateX / Math.max(1 - baseRateX, 1e-9);
+  const factorX = targetOddsX / meanRawX;
+  let brierSumX = 0;
+  for (let i = 0; i < rawOddsX.length; i++) {
+    const oddsX = rawOddsX[i]! * factorX;
+    const probX = oddsX / (1 + oddsX);
+    const yX = hasTokenX[i] ? 1 : 0;
+    brierSumX += (probX - yX) * (probX - yX);
+  }
+  // Report the factor folded into the intercept so the dashboard can score a fresh row with one dot product.
+  const interceptX = wX[0]! + Math.log(factorX);
+  return {
+    weights: { intercept: interceptX, age: wX[1]!, growth: wX[2]!, category: wX[3]! },
+    base_rate: baseRateX,
+    brier: rawOddsX.length === 0 ? 0 : brierSumX / rawOddsX.length,
+    n: nX,
+    positives: positivesX,
+    scales: {
+      age_mean: ageZ.mean, age_sd: ageZ.sd,
+      growth_mean: growthZ.mean, growth_sd: growthZ.sd,
+      cat_mean: catZ.mean, cat_sd: catZ.sd,
+      cat_rate: Object.fromEntries([...catTotalsX].map(([kX, vX]) => [kX, vX.n === 0 ? baseRateX : vX.pos / vX.n])),
+    },
+  };
+}
+
+/**
+ * A single protocol's stated odds it ever records a token, using the fitted weights and the same feature
+ * standardisation the fit used. The dashboard renders this directly next to each pre-token row.
+ */
+export function tokensOddsOfX(pX: SnapshotProtocolX, asOf: string, model: ModelConstantsX, fitX: TokenOddsX): number {
+  const ageX = ageDaysX(asOf, pX.listed_at) ?? model.unknown_age_days;
+  const growthX = Math.min(model.growth_cap, Math.max(model.growth_floor, pX.change_7d ?? 0));
+  const catX = fitX.scales.cat_rate[pX.category ?? 'unlisted'] ?? fitX.base_rate;
+  const zAge = (ageX - fitX.scales.age_mean) / fitX.scales.age_sd;
+  const zGrowth = (growthX - fitX.scales.growth_mean) / fitX.scales.growth_sd;
+  const zCat = (catX - fitX.scales.cat_mean) / fitX.scales.cat_sd;
+  const linerX = fitX.weights.intercept + fitX.weights.age * zAge + fitX.weights.growth * zGrowth + fitX.weights.category * zCat;
+  const oddsX = Math.exp(Math.min(60, Math.max(-60, linerX)));
+  return oddsX / (1 + oddsX);
+}
+
 /** Which multiple a calibration assigns to a protocol's category; falls back to 1 when peers are too few. */
 export function categoryMultipleX(calX: CalibrationX, category: string | null): number {
   const hitX = calX.by_category[category ?? 'unlisted'];
@@ -458,6 +579,7 @@ export interface BoardRowX {
   token_status: 'pre-token';
   age_days: number | null;
   implied_value_usd: number;
+  token_odds: number;
   model: {
     elasticity: number;
     category_multiple: number;
@@ -518,6 +640,7 @@ export interface RadarRowX {
   listed_at: string | null;
   age_days: number | null;
   implied_value_usd: number;
+  token_odds: number;
   category_multiple: number;
   effective_multiple: number;
   growth_multiplier: number;
@@ -587,6 +710,7 @@ export interface RadarDataX {
   live: LiveRowX[];
   set_aside: SetAsideRowX[];
   category_peers: Record<string, { name: string; multiple: number }[]>;
+  token_odds: TokenOddsX;
 }
 
 /** The reasons a snapshot falls outside what this model is able to score. */
@@ -687,6 +811,7 @@ export function buildBoardX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
   for (const p of earlyX) chosenX.set(p.slug, p);
 
   const calX = calibrateX(snapshotX, model);
+  const oddsFitX = fitTokenOddsX(snapshotX, model);
   const scoredX = [...chosenX.values()].map((p) => ({ p, r: impliedValueX(p, snapshotX.as_of, model, calX) }));
   scoredX.sort((aX, bX) => bX.r.implied - aX.r.implied || (aX.p.slug < bX.p.slug ? -1 : aX.p.slug > bX.p.slug ? 1 : 0));
   return scoredX.map(({ p: pX, r: rX }, i) => {
@@ -706,6 +831,7 @@ export function buildBoardX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
     token_status: 'pre-token',
     age_days: rX.age,
     implied_value_usd: rX.implied,
+    token_odds: Math.round(tokensOddsOfX(pX, snapshotX.as_of, model, oddsFitX) * 10000) / 10000,
     model: {
       elasticity: roundX(calX.elasticity, 3),
       category_multiple: roundX(rX.catMult, 4),
@@ -959,6 +1085,7 @@ export function radarRowX(row: BoardRowX): RadarRowX {
     listed_at: row.listed_at,
     age_days: row.age_days,
     implied_value_usd: row.implied_value_usd,
+    token_odds: row.token_odds,
     category_multiple: row.model_full.category_multiple,
     effective_multiple: row.model.effective_multiple,
     growth_multiplier: row.model_full.growth_multiplier,
@@ -1012,6 +1139,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
     live: liveX,
     set_aside: setAsideX,
     category_peers: categoryPeersX(snapshotX),
+    token_odds: fitTokenOddsX(snapshotX, model),
   };
   return { board: boardX, radar: radarX }; // c
 }

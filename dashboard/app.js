@@ -51,6 +51,13 @@
     return Math.round(days) + 'd';
   }
   function pctClass(nX) { return nX === null || nX === undefined || !isFinite(nX) ? 'flat' : nX > 0 ? 'pos' : nX < 0 ? 'neg' : 'flat'; }
+  // Token-odds banding, keyed off the snapshot base rate so the colours mean the same thing across runs.
+  function oddsBand(pX) {
+    var baseX = (DATAX.token_odds && DATAX.token_odds.base_rate) || 0;
+    if (pX >= baseX * 2) return 'hi';
+    if (pX <= baseX * 0.5) return 'lo';
+    return 'mid';
+  }
   function esc(sX) { return String(sX).replace(/[&<>"]/g, function (cX) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[cX]; }); }
 
   // The scoring formula, restated on the page from the snapshot's own numbers. implied = alpha x TVL^elasticity x
@@ -151,7 +158,18 @@
       kpi(FITX.comparables, 'comparables fitted', 'priced protocols the curve rests on', ''),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band about the curve (median ×' + FITX.median_abs_error.toFixed(2) + ')', 'accent'),
       kpi(pX, 'pre-token on record', DATAX.board_size + ' ranked, ' + aside + ' set aside', ''),
-      kpi(liveX, 'tokens on record', 'shown apart, never mixed into the ranking', ''));
+      kpi(liveX, 'tokens on record', 'shown apart, never mixed into the ranking', ''),
+      oddsKpi());
+  } // c
+
+  // The token-odds card: a small logistic fit's Brier score set against the base-rate line it must beat, plus
+  // the base rate itself. A Brier below the base-rate line means the stated odds carry signal beyond the mean.
+  function oddsKpi() {
+    var oX = DATAX.token_odds || {};
+    var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
+    var baseBrierX = baseX * (1 - baseX);
+    var beatsX = brierX < baseBrierX;
+    return kpi(brierX.toFixed(3), 'token-odds Brier', 'base rate ' + (baseX * 100).toFixed(0) + '% \u2192 \u00d7' + ((baseX / Math.max(1 - baseX, 1e-9)).toFixed(2)) + ' odds; ' + (beatsX ? 'beats the base line ' : 'does not beat the base line ') + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
   } // c
   function kpi(value, label, sub, cls) {
     return h('div', { class: 'kpi ' + (cls || '') }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, String(value)), h('div', { class: 'k-sub' }, sub));
@@ -366,7 +384,7 @@
       headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
         th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No token for', true),
         th('ratio', 'Implied / TVL', true), th('value', 'Implied value', true),
-        th('band', 'Band', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
+        th('band', 'Band', true), th('token_odds', 'Token Odds', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
     }
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
@@ -391,6 +409,7 @@
         cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(3) + '×' : '—'));
         cellsX.push(h('td', { class: 'num val' }, fmtUsdX(rX.implied_value_usd)));
         cellsX.push(h('td', { class: 'num band' }, rX.band_lo_usd === undefined ? '—' : fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd)));
+        cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
         cellsX.push(h('td', null, rX.verdictX === undefined ? '—' : h('span', { class: 'pill verdict-' + rX.verdictX }, rX.verdictX)));
       }
@@ -414,7 +433,8 @@
     var kvX = h('dl', { class: 'kv' },
       dt('Slug', rX.slug), dt('Category', rX.category || '—'), dt('Chains', (rX.chains || []).join(', ') || '—'),
       dt('TVL', fmtUsdX(rX.tvl_usd)), dt('7-day change', fmtPct(rX.change_7d)),
-      dt('Listed', rX.listed_at || 'unknown'), dt('No token for', fmtAge(rX.age_days)));
+      dt('Listed', rX.listed_at || 'unknown'), dt('No token for', fmtAge(rX.age_days)),
+      dt('Token odds', rX.token_odds === undefined ? '—' : (rX.token_odds * 100).toFixed(1) + '% (base ' + (((DATAX.token_odds && DATAX.token_odds.base_rate) || 0) * 100).toFixed(0) + '%)'));
     bodyX.appendChild(kvX);
     if (!liveX) {
       var recomputedX = impliedOf(rX);
@@ -433,6 +453,11 @@
         bodyX.appendChild(h('div', { class: 'math', html:
           'band: <b>' + fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd) + '</b> (the interquartile residual span around the curve)<br>' +
           'netting: allocation <b>' + fmtMoney(rX.alloc_usd) + '</b> − gas <b>' + fmtMoney(rX.est_gas_usd) + '</b> over <b>' + rX.est_hours + '</b> hands-on hours = net <b>' + fmtMoney(rX.net_usd) + '</b>, at the upper band net <b>' + fmtMoney(rX.net_hi_usd) + '</b>: verdict <b>' + rX.verdict + '</b>.' }));
+      }
+      if (rX.token_odds !== undefined) {
+        var baseX = (DATAX.token_odds && DATAX.token_odds.base_rate) || 0;
+        bodyX.appendChild(h('div', { class: 'math', html:
+          'token odds: <b>' + (rX.token_odds * 100).toFixed(1) + '%</b> that this protocol ever records a token, against a snapshot base rate of <b>' + (baseX * 100).toFixed(0) + '%</b>; the fit scores its stated odds at a Brier of <b>' + (((DATAX.token_odds && DATAX.token_odds.brier) || 0).toFixed(3)) + '</b>.' }));
       }
       var peersX = categoryPeersOf(rX);
       if (peersX) {
