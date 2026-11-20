@@ -35,6 +35,21 @@
     }
     return sign + '$' + aX.toFixed(places);
   }
+  // A tight money label for the board's numeric cells: same magnitude, no cents, one decimal past the unit,
+  // so an implied value or a fee-netted figure reads whole inside its column instead of trailing an ellipsis.
+  function fmtShortUsdX(nX) {
+    if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
+    var aX = Math.abs(nX), sign = nX < 0 ? '-' : '';
+    if (aX >= 1e9) return sign + '$' + (aX / 1e9).toFixed(1) + 'B';
+    if (aX >= 1e6) return sign + '$' + (aX / 1e6).toFixed(1) + 'M';
+    if (aX >= 1e3) return sign + '$' + Math.round(aX / 1e3) + 'K';
+    return sign + '$' + Math.round(aX);
+  }
+  // The P25-P75 band, abridged to the unit so both ends share one cell without wrapping or clipping.
+  function fmtBandX(loX, hiX) {
+    if (loX === null || loX === undefined || hiX === null || hiX === undefined) return 'n/a';
+    return fmtShortUsdX(loX) + '\u2013' + fmtShortUsdX(hiX);
+  }
   // An unabbreviated integer carrying thousands separators and never scientific notation, so the math
   // line can be read exactly as written (1,062,000 instead of 1.06e6 or $1.06M).
   function wholeNumber(nX) {
@@ -172,18 +187,21 @@
     return kpi(brierX.toFixed(3), 'token-odds Brier', 'base rate ' + (baseX * 100).toFixed(0) + '% \u2192 \u00d7' + ((baseX / Math.max(1 - baseX, 1e-9)).toFixed(2)) + ' odds; ' + (beatsX ? 'beats the base line ' : 'does not beat the base line ') + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
   } // c
   function kpi(value, label, sub, cls) {
-    return h('div', { class: 'kpi ' + (cls || '') }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, String(value)), h('div', { class: 'k-sub' }, sub));
+    // The figure leads its caption on one tight line; the caption yields (ellipsis) before the number ever
+    // does, and the footnote takes its own clipped line beneath — so the seven-card strip stays short.
+    return h('div', { class: 'kpi ' + (cls || '') },
+      h('div', { class: 'k-top' }, h('span', { class: 'k-value' }, String(value)), h('span', { class: 'k-label' }, label)),
+      h('div', { class: 'k-sub' }, sub));
   } // c
 
   function method() {
     var aX = FITX.alpha.toPrecision(3);
     var growthLoX = MODELX.growth_floor, growthHi = MODELX.growth_cap, weight = MODELX.growth_weight;
-    return h('section', { class: 'method' },
-      h('details', { class: 'disclosure' },
+    return h('details', { class: 'disclosure method-fold' },
         h('summary', null, 'Method note — how a launch is priced'),
       h('p', { html: 'Every protocol that records no token (no symbol, no market cap, no CoinGecko id) that is not a wrapped or staked product of one that trades is ranked by an implied launch value that follows only from the snapshot\'s own figures, through the market\'s own size curve: <code>implied = ' + esc(aX) + ' &times; TVL<sup>' + FITX.elasticity.toFixed(3) + '</sup> &times; category &times; growth &times; maturity</code>.' }),
       h('p', { html: 'That curve is fitted by least squares on <code>log(mcap)</code> against <code>log(tvl)</code> over the <b>' + FITX.comparables + '</b> protocols this snapshot already prices. The <b>elasticity</b> is ' + FITX.elasticity.toFixed(3) + ': the market pays <i>less</i> per dollar as TVL grows, so a $3B protocol is not simply a $50M one times sixty. Half the priced protocols land within <b>×' + FITX.err_lo.toFixed(2) + ' to ×' + FITX.err_hi.toFixed(2) + '</b> of the curve (median error ×' + FITX.median_abs_error.toFixed(2) + '). The <b>category</b> factor is a category\'s median residual shrunk toward 1 (' + FITX.categories + ' categories carry enough peers); <b>growth</b> is the seven-day TVL change clamped to ' + growthLoX + '%..' + growthHi + '% and weighted ' + weight + '; <b>maturity</b> rises from 0.6 to 1.0 over ' + (MODELX.maturity_days / 365).toFixed(0) + ' years with no token. No name is ever special-cased.' }),
-      h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Token on record</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Set aside</b>, never mixed into the ranking.' })));
+      h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Token on record</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Set aside</b>, never mixed into the ranking.' }));
   } // c
 
   // ---------------------------------------------------------------- analytics band
@@ -202,12 +220,17 @@
       return h('div', { class: 'acct-seg', style: 'flex:' + bX.count + ' 0 0;background:' + bX.color, title: bX.label + ': ' + bX.count },
         h('span', null, String(bX.count)));
     });
+    // The legend rides the same line as the bar, so each entry shows its swatch and count only — the full
+    // bucket name lives in the title, and the segment itself already carries the same count inside the bar.
     var keysX = (aX.bars || []).map(function (bX) {
-      return h('li', null, h('i', { style: 'background:' + bX.color }), h('span', { class: 'acct-lbl' }, bX.label), h('b', null, String(bX.count)));
+      return h('li', { title: bX.label + ': ' + bX.count, 'aria-label': bX.label + ': ' + bX.count },
+        h('i', { style: 'background:' + bX.color }), h('b', null, String(bX.count)));
     });
-    return card('Protocol accounting', 'all ' + (aX.total || 0) + ' protocols by lifecycle, disjoint and summing to the whole',
-      h('div', { class: 'acct-bar' }, segsX),
-      h('ul', { class: 'acct-key' }, keysX));
+    return h('section', { class: 'card acct-card' },
+      h('div', { class: 'acct-inline' },
+        h('h3', { class: 'acct-title' }, 'Protocol accounting'),
+        h('div', { class: 'acct-bar' }, segsX),
+        h('ul', { class: 'acct-key' }, keysX)));
   } // c
 
   // Walk-forward panel: five sequential folds the curve never trained on, each graded against a flat
@@ -249,7 +272,7 @@
   } // c
 
   function scatterCard() {
-    var WX = 560, H = 340, padL = 54, padR = 16, padT = 16, padB = 40;
+    var WX = 560, H = 236, padL = 54, padR = 16, padT = 14, padB = 34;
     var ptsX = [];
     DATAX.live.forEach(function (pX) { if (pX.tvl_usd > 0 && pX.mcap_usd > 0) ptsX.push({ x: Math.log(pX.tvl_usd) / Math.LN10, y: Math.log(pX.mcap_usd) / Math.LN10, kind: 'live' }); });
     DATAX.rows.forEach(function (rX) { if (rX.tvl_usd > 0 && rX.implied_value_usd > 0) ptsX.push({ x: Math.log(rX.tvl_usd) / Math.LN10, y: Math.log(rX.implied_value_usd) / Math.LN10, kind: 'row' }); });
@@ -371,6 +394,7 @@
     var kidsX = [tabsX, searchX, catSelX, chainSelX];
     if (stateX.tab === 'board') kidsX.push(verdictChips());
     kidsX.push(h('div', { class: 'count' }));
+    kidsX.push(method());
     return h('div', { class: 'controls' }, kidsX);
   }
   function tabBtn(id, label) { return h('button', { role: 'tab', 'aria-selected': String(stateX.tab === id), onclick: function () { stateX.tab = id; paint(); } }, label); }
@@ -448,8 +472,8 @@
       cellsX.push(h('td', null, h('span', { class: 'pname' }, rX.name)));
       cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, rX.category) : h('span', { class: 'flat' }, '—')));
       var chainsX = rX.chains || [];
-      var shownX = chainsX.slice(0, 3).map(function (cX) { return h('span', null, cX); });
-      if (chainsX.length > 3) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 3)));
+      var shownX = chainsX.slice(0, 2).map(function (cX) { return h('span', null, cX); });
+      if (chainsX.length > 2) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 2)));
       cellsX.push(h('td', null, h('span', { class: 'chips' }, shownX)));
       cellsX.push(h('td', { class: 'num' }, fmtUsdX(rX.tvl_usd)));
       cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPct(rX.change_7d)));
@@ -459,11 +483,11 @@
       } else {
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(3) + '×' : '—'));
-        cellsX.push(h('td', { class: 'num val' }, fmtUsdX(rX.implied_value_usd)));
-        cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtUsdX(rX.band_p25_usd) + ' – ' + fmtUsdX(rX.band_p75_usd)));
+        cellsX.push(h('td', { class: 'num val' }, fmtShortUsdX(rX.implied_value_usd)));
+        cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
-        cellsX.push(h('td', { class: 'num netline' }, rX.net_label || '—'));
-        cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
+        cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtShortUsdX(rX.net_usd)));
+        cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtShortUsdX(rX.net_per_hour)));
         cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict)));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
@@ -571,7 +595,7 @@
     var rows = filtered();
     var ctrlX = controls();
     ctrlX.querySelector('.count').textContent = rows.length + (stateX.tab === 'live' ? ' tokens on record' : stateX.tab === 'aside' ? ' protocols set aside' : ' protocols ranked');
-    return h('main', { id: 'main' }, header(), kpis(), analytics(), method(), ctrlX, table(rows),
+    return h('main', { id: 'main' }, header(), kpis(), analytics(), ctrlX, table(rows),
       h('footer', null,
         'Source: ' + DATAX.source + '. The board ranks pre-token protocols by an implied launch value from a size-fitted comps curve over the snapshot\'s own TVL, market-cap, growth and age figures: no name is special-cased. It is a research board, not advice, and no reward is promised for farming any protocol. Press / to jump to the search box.'));
   }
