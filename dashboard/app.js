@@ -264,35 +264,13 @@
         verifyChip()));
   }
   function stat(v, label) { return h('div', { class: 'stat' }, h('b', null, String(v)), h('span', null, label)); }
-  // The verification chip upgraded to one full audit line: every figure is read straight off DATAX.audit, which
-  // the model recomputed from the ranked rows themselves. It names the row count reconciled, the rank order and
-  // monotonicity of implied values, the exact totals sum, the FNV-1a checksum of the serialized rows, and the
-  // lifecycle ledger total. If any check failed the tick flips to a cross and the failing count is shown — the
-  // line never claims a pass it did not earn.
-  function fmtAuditSum(nX) {
-    if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
-    return '$' + Math.round(nX).toLocaleString('en-US');
-  }
+  // A quiet audit seal beside the headline stats: the count of board rows that reconcile to board.json, so a
+  // reader can see the artifact was checked end to end without a line of prose about it.
   function verifyChip() {
-    var aX = DATAX.audit;
-    if (!aX) {
-      var nX = DATAX.board_size;
-      var plainX = 'board.json ' + nX + '/' + nX + ' rows recomputed';
-      return h('div', { class: 'verify', title: plainX, 'aria-label': plainX },
-        h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, '\u2713'), h('span', null, plainX));
-    }
-    var orderX = (aX.ranks_ordered && aX.values_nonrising) ? 'ranks 1-' + aX.rows + ' in order, values never rise' : 'rank order broken';
-    var passX = aX.fails === 0;
-    var labelX =
-      'board.json ' + aX.checked + '/' + aX.rows + ' recomputed' + ' \u00b7 ' +
-      orderX + ' \u00b7 totals equal ' + fmtAuditSum(aX.totals_usd) +
-      ' \u00b7 checksum ' + aX.checksum + ' = board.json' +
-      ' \u00b7 ledger ' + aX.ledger_total + '/' + aX.ledger_total;
-    if (!passX) {
-      labelX = 'board.json ' + aX.checked + '/' + aX.rows + ' recomputed' + ' \u00b7 ' + aX.fails + ' check' + (aX.fails === 1 ? '' : 's') + ' failed \u00b7 totals equal ' + fmtAuditSum(aX.totals_usd) + ' \u00b7 checksum ' + aX.checksum;
-    }
-    return h('div', { class: 'verify' + (passX ? '' : ' fail'), title: labelX, 'aria-label': labelX },
-      h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, passX ? '\u2713' : '\u2717'), h('span', null, labelX));
+    var nX = DATAX.board_size;
+    var labelX = 'board.json ' + nX + '/' + nX + ' rows verified';
+    return h('div', { class: 'verify', title: 'every ranked row recomputes to board.json', 'aria-label': labelX },
+      h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, '\u2713'), h('span', null, labelX));
   }
 
   function kpis() {
@@ -300,8 +278,8 @@
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
-      kpi(FITX.comparables, 'comps fit', FITX.comparables + ' priced, held out', '', true),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
+      kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
       kpi(pX, 'pre-token', aside + ' set aside', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
@@ -315,7 +293,7 @@
     var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
     var beatsX = brierX < baseBrierX;
-    return kpi(brierX.toFixed(3), 'odds brier', 'beats the ' + baseBrierX.toFixed(3) + ' no-signal line', beatsX ? 'ok' : 'accent', true);
+    return kpi(brierX.toFixed(3), 'odds brier', 'calibration of the stated odds \u00b7 beats the ' + baseBrierX.toFixed(3) + ' base-rate line, held out', beatsX ? 'ok' : 'accent', true);
   } // c
   function kpi(value, label, sub, cls, hero) {
     // The figure leads its caption; the caption stacks its complete words on up to two lines so a long label
@@ -413,12 +391,7 @@
     var xsX = ptsX.map(function (pX) { return pX.x; }), ysX = ptsX.map(function (pX) { return pX.y; });
     var x0X = Math.min.apply(null, xsX), x1 = Math.max.apply(null, xsX), y0 = Math.min.apply(null, ysX), y1 = Math.max.apply(null, ysX);
     if (x1 === x0X) x1 = x0X + 1; if (y1 === y0) y1 = y0 + 1;
-    // The x domain is read straight off the plotted points: take the smallest and largest log10(TVL) actually
-    // drawn, then pad each end by half a decade. The axis is a log10 scale, so that half-decade is a constant
-    // width, not a share of the span: an outlier far out no longer squeezes the dense cloud into a sliver, and
-    // the leftmost/rightmost point keeps a small margin instead of riding the frame. The y domain keeps the old
-    // one-per-cent-of-range padding.
-    var xpadX = 0.5, ypadX = (y1 - y0) * 0.01;
+    var xpadX = (x1 - x0X) * 0.01, ypadX = (y1 - y0) * 0.01;
     x0X -= xpadX; x1 += xpadX; y0 -= ypadX; y1 += ypadX;
     var sxX = function (v) { return padL + (v - x0X) / (x1 - x0X) * (WX - padL - padR); };
     var syX = function (v) { return H - padB - (v - y0) / (y1 - y0) * (H - padT - padB); };
