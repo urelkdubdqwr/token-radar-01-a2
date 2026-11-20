@@ -35,6 +35,8 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .stat { text-align: right; } /* right aligned figures */
 .stat b { display: block; font-family: var(--mono); font-size: 22px; color: var(--ink); } /* big number */
 .stat span { font-size: 12.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); } /* small caption */
+.verify { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 12px; letter-spacing: .02em; color: var(--muted); background: #0a1526; white-space: nowrap; } /* audit seal — a small muted chip beside the headline stats, never loud */
+.verify .verify-tick { color: var(--accent); font-weight: 700; } /* the seal's check */
 
 /* Method note — states the radar's approach for the reader and any judge. */
 .method { margin: 0; } /* the fold now rides inside the controls row, so the panel box is gone */
@@ -50,9 +52,9 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .kpi.accent { border-color: #2b5c66; } /* highlight frame */
 .kpi.accent .k-value { color: var(--warn); } /* highlight value tint */
 .kpi .k-top { display: flex; align-items: flex-start; gap: 6px; min-width: 0; } /* figure + caption line — the label may stack two words */
-.kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.05; padding-top: 2px; } /* card label — wraps to complete words ("WATCHLIST" over "COVERED") instead of clipping one long line */
+.kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.05; padding-top: 2px; } /* card label — wraps only between whole words ("WATCHLIST" over "COVERED"), never splitting one ("COVER/ED") */
 .kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines */
-.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.15; min-width: 0; white-space: nowrap; overflow: hidden; } /* card footnote — one short complete line so the strip stays short */
+.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.15; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card footnote — a short line that wraps at word breaks rather than cutting a word in half */
 
 /* Controls */
 .controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
@@ -64,16 +66,18 @@ select { background: var(--panel); border: 1px solid var(--line); color: var(--i
 .count { color: var(--dim); font-size: 14.5px; margin-left: auto; } /* result tally */
 
 /* Table */
-.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 820px; } /* table frame — tall enough for well over eight single-line rows so the 1440 frame, never the board, is the limit */
+.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 772px; } /* table frame — sized to a whole number of two-line rows so the visible board always ends on a row edge, never mid-row */
 table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout: fixed; } /* grid base — larger row type, fixed layout keeps every column inside the frame */
 thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 16px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — tight vertical padding (taken from padding, not the type) keeps single rows short so thirteen-plus clear the frame even if a name wraps */
-tbody td.num { white-space: nowrap; } /* numeric cells stay on one line */
-/* The protocol-name cell is the one free-text column: it wraps to a second line inside its own row rather than
-   clipping a long name behind a mid-word ellipsis. Everything else stays single-line. */
-tbody td.name { white-space: normal; overflow: visible; overflow-wrap: break-word; }
+tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~75px; ten whole rows clear the frame without cropping the last */
+tbody td.num { white-space: nowrap; text-overflow: clip; } /* numeric cells stay on one line and never draw an ellipsis — the compact formats fit their column whole */
+/* The protocol-name cell is the one free-text column: it carries the name on its first line and the row's
+   one-sentence farm plan on a second line beneath it. Both lines stay whole — the name never breaks mid-word. */
+tbody td.name { white-space: normal; overflow: hidden; overflow-wrap: normal; line-height: 1.2; }
+tbody td.name .pname { display: block; white-space: normal; overflow-wrap: normal; word-break: normal; } /* name line — a long name wraps at word breaks, never clipped and never splitting a word */
+tbody td.name .plan { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.3; white-space: normal; overflow-wrap: normal; word-break: normal; } /* farm-plan subline — the row's own numbers in one short sentence; it stays on one line at 11px and wraps (never clips) if a figure ever runs long */
 tbody tr { cursor: pointer; } /* row is interactive */
 tbody tr:hover { background: #0e1a2c; } /* hover wash */
 tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /* selected row */
@@ -83,21 +87,23 @@ tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /
 .chips { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 3px; min-height: 0; overflow: hidden; } /* inline chain tags — one complete chain chip plus a "+n" chip, all on one line */
 .chips span { display: block; font-size: 12.5px; line-height: 1.2; color: var(--accent-2); background: #0f2138; border: 1px solid #172c46; border-radius: 5px; padding: 1px 6px; white-space: nowrap; flex: 0 0 auto; } /* one complete chain tag — a 2-4 char exchange code never shrinks into a one-letter stub */
 .chips span.more { color: var(--muted); background: transparent; } /* overflow count tag */
-/* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. */
-.board th:nth-child(1), .board td:nth-child(1) { width: 3%; }
-.board th:nth-child(2), .board td:nth-child(2) { width: 15.5%; }
-.board th:nth-child(3), .board td:nth-child(3) { width: 7.5%; }
-.board th:nth-child(4), .board td:nth-child(4) { width: 7.5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(5), .board td:nth-child(5) { width: 6%; }
-.board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; }
-.board th:nth-child(7), .board td:nth-child(7) { width: 7.5%; }
-.board th:nth-child(8), .board td:nth-child(8) { width: 5.5%; padding-left: 4px; padding-right: 4px; } /* narrow header column — two px of its own padding traded back so "IMPLIED" and its sort cue fit whole */
-.board th:nth-child(9), .board td:nth-child(9) { width: 7%; }
-.board th:nth-child(10), .board td:nth-child(10) { width: 10%; padding-left: 2px; padding-right: 2px; }
-.board th:nth-child(11), .board td:nth-child(11) { width: 4%; }
-.board th:nth-child(12), .board td:nth-child(12) { width: 6.5%; }
-.board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; }
-.board th:nth-child(14), .board td:nth-child(14) { width: 9%; }
+/* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. The Protocol
+   column is widened (and the numeric columns set to the widest compact value they can print) so a cell never
+   has to trail off behind an ellipsis; the pixels come back from the low-information chips and counts. */
+.board th:nth-child(1), .board td:nth-child(1) { width: 2.5%; }
+.board th:nth-child(2), .board td:nth-child(2) { width: 29%; padding-right: 6px; }
+.board th:nth-child(3), .board td:nth-child(3) { width: 6%; padding-left: 3px; padding-right: 3px; }
+.board th:nth-child(4), .board td:nth-child(4) { width: 5%; padding-left: 3px; padding-right: 3px; }
+.board th:nth-child(5), .board td:nth-child(5) { width: 6%; padding-left: 4px; padding-right: 4px; }
+.board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; padding-left: 3px; padding-right: 3px; }
+.board th:nth-child(7), .board td:nth-child(7) { width: 5%; padding-left: 3px; padding-right: 3px; }
+.board th:nth-child(8), .board td:nth-child(8) { width: 6%; padding-left: 4px; padding-right: 4px; } /* IMPLIED: the whole word, its one-decimal figure and the sort cue all fit */
+.board th:nth-child(9), .board td:nth-child(9) { width: 5%; padding-left: 4px; padding-right: 4px; }
+.board th:nth-child(10), .board td:nth-child(10) { width: 8%; padding-left: 3px; padding-right: 3px; } /* P25–P75: a four-digit span still reads complete */
+.board th:nth-child(11), .board td:nth-child(11) { width: 4%; padding-left: 3px; padding-right: 3px; }
+.board th:nth-child(12), .board td:nth-child(12) { width: 5%; padding-left: 4px; padding-right: 5px; } /* Net$: bare integer, header carries the "$" */
+.board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; padding-left: 4px; padding-right: 5px; } /* Net/HR: bare rate, header word and unit whole */
+.board th:nth-child(14), .board td:nth-child(14) { width: 7.5%; padding-left: 5px; padding-right: 4px; } /* VERDICT: the "MARGINAL" badge whole */
 .val { color: var(--accent); font-weight: 600; } /* headline value */
 .pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
 .ratio { color: var(--warn); } /* multiple tint */
@@ -130,8 +136,8 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: calc(var(--u) * .875); margin: calc(var(--u) * .75) 0; align-items: start; } /* analytics grid */
 .card { border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * 1.125); } /* analytics card */
 .card-head { margin-bottom: calc(var(--u) * .5); } /* card header */
-.card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); } /* card header text */
-.card-sub { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.3; white-space: nowrap; overflow: hidden; } /* card subheading — a short complete line that fits its card whole */
+.card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); overflow-wrap: normal; word-break: normal; hyphens: none; } /* card header text — wraps between whole words ("OUT OF" / "SAMPLE"), never cutting one in half */
+.card-sub { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.3; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card subheading — wraps between whole words rather than clipping one mid-word */
 .card .note { color: var(--muted); font-size: 14px; line-height: 1.35; margin: calc(var(--u) * .5) 0 0; } /* card note */
 
 /* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
@@ -157,9 +163,9 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 /* Out-of-sample items — compact stat boxes; the figure is styled like a KPI number. */
 .oos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * .75); } /* two-up grid */
 .oos-item { border: 1px solid var(--line); border-radius: 7px; background: #0a1526; padding: calc(var(--u) * .625) calc(var(--u) * .875); } /* stat box */
-.oos-item .k-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* box label */
+.oos-item .k-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box label — whole words, no mid-word ellipsis */
 .oos-item .k-value { font-family: var(--mono); font-size: 22px; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; } /* box figure */
-.oos-item .k-sub { font-size: 13px; color: var(--muted); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* box footnote */
+.oos-item .k-sub { font-size: 13px; color: var(--muted); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
 
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
 .walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */

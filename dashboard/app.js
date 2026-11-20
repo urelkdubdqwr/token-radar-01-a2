@@ -49,6 +49,19 @@
   // One decimal, but a trailing ".0" is dropped ("$1.0M" -> "$1M", "$9.0K" -> "$9K"): the shortest label that
   // still carries the magnitude, so a board cell never has to punt the tail of its number behind an ellipsis.
   function trimZeroX(vX) { return vX.toFixed(1).replace(/\.0$/, ''); }
+  // The board's Net$ column carries its currency in the header, so the cell is a bare signed integer
+  // ("499", "-12") — short enough that the widest netting never reaches the column edge.
+  function fmtNetX(nX) {
+    if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
+    return (nX < 0 ? '\u2212' : '') + Math.abs(Math.round(nX));
+  }
+  // The board's Net/HR column: a bare rate to one decimal ("14.4", "\u22122"), same convention — no currency sign,
+  // since the column head already says what the figure is, so a per-hour figure always reads whole.
+  function fmtNetRateX(nX) {
+    if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
+    var sX = trimZeroX(Math.abs(nX));
+    return (nX < 0 ? '\u2212' : '') + sX;
+  }
   // Board TVL: the same magnitude ladder as fmtShortUsdX, so a headline size reads whole in a narrow column.
   function fmtBoardUsd(nX) { return fmtShortUsdX(nX); }
   // A one-place percentage for the board's seven-day growth cell, so "+24.1%" never collapses to "+24.1...".
@@ -106,14 +119,27 @@
     if (c.indexOf('deriv') >= 0) return 'DERIV';
     if (c.indexOf('perp') >= 0) return 'PERPS';
     if (c.indexOf('real world') >= 0 || c.indexOf('rwa') >= 0) return 'RWA';
+    if (c.indexOf('collateral') >= 0 || c.indexOf('cdp') >= 0) return 'CDP';
     if (c.indexOf('liquid') >= 0 || c.indexOf('stak') >= 0) return 'LST';
     if (c.indexOf('lend') >= 0) return 'LEND';
     if (c.indexOf('bridge') >= 0) return 'BRIDGE';
     if (c.indexOf('option') >= 0) return 'OPTS';
     if (c.indexOf('yield') >= 0) return 'YIELD';
-    if (c.indexOf('dex') >= 0) return 'DEX';
-    var wordX = (c.split(/[^a-z0-9]+/).filter(Boolean)[0] || 'other').toUpperCase();
-    return wordX.length > 8 ? wordX.slice(0, 8) : wordX;
+    if (c.indexOf('dex') >= 0 || c.indexOf('amm') >= 0) return 'DEX';
+    if (c.indexOf('aggregator') >= 0) return 'AGGR';
+    if (c.indexOf('curator') >= 0 || c.indexOf('allocator') >= 0) return 'VAULT';
+    if (c.indexOf('launchpad') >= 0) return 'LAUNCH';
+    if (c.indexOf('insurance') >= 0) return 'INSURE';
+    if (c.indexOf('stable') >= 0) return 'STABLE';
+    if (c.indexOf('exchange') >= 0) return 'EXCH';
+    if (c.indexOf('wallet') >= 0) return 'WALLET';
+    if (c.indexOf('oracle') >= 0) return 'ORACLE';
+    if (c.indexOf('rpc') >= 0 || c.indexOf('infra') >= 0) return 'INFRA';
+    if (c.indexOf('social') >= 0) return 'SOCIAL';
+    // Fall back to the name's first complete word, never a mid-word stub: a whole short word ("GAMING")
+    // reads as a category, while "COLLATER" behind an ellipsis reads as a defect. Long enough unknown
+    // categories are kept whole rather than cut, so the chip always states a real word.
+    return (c.split(/[^a-z0-9]+/).filter(Boolean)[0] || 'other').toUpperCase();
   }
   // Standard short exchange codes for the chains the snapshot lists — every code is 2-4 characters so it
   // renders whole inside the chip box at its own font size; anything unlisted falls back to its first word,
@@ -180,6 +206,22 @@
     ];
   } // c
 
+  // The one-sentence farm plan printed on each ranked row's second line, composed only from that row's own
+  // record — the position it sizes, the claim the model credits, the fee the plan pays and the per-hour net.
+  // A row the model sets aside says so in its own terms instead, so the subline always explains the row.
+  function planLineX(rX) {
+    if (rX === null || rX === undefined) return '';
+    if (rX.reason) return rX.reason;
+    var posX = rX.position_usd !== undefined ? '$' + Math.round(rX.position_usd) : 'a position';
+    var claimX = rX.alloc_usd !== undefined ? '$' + Math.round(rX.alloc_usd) : 'n/a';
+    var feeX = rX.est_gas_usd !== undefined ? '\u2212$' + trimZeroX(rX.est_gas_usd) : 'n/a';
+    var netX = rX.net_per_hour !== undefined ? fmtNetRateX(rX.net_per_hour) : 'n/a';
+    var netSignedX = netX.charAt(0) === '\u2212' ? netX : '+' + netX;
+    if (rX.verdict === 'skip') return 'skip \u2014 the top band still nets ' + (rX.net_hi_usd !== undefined ? fmtShortUsdX(rX.net_hi_usd) : 'n/a') + ' on ' + posX;
+    if (rX.verdict === 'marginal') return 'marginal \u2014 net ' + netSignedX + '/hr only at the top band';
+    return 'farm ' + posX + ' \u2192 claim \u2248 ' + claimX + ', fees ' + feeX + ', net ' + netSignedX + '/hr';
+  }
+
   // ---------------------------------------------------------- element helper
   function h(tag, attrs) {
     var nodeX = document.createElement(tag);
@@ -218,9 +260,18 @@
       h('div', { class: 'stats' },
         stat(DATAX.watchlist_size + '/' + DATAX.watchlist_size, 'watchlist covered'),
         stat(DATAX.board_size, 'protocols ranked'),
-        stat(DATAX.early_size, 'early finds below the floor')));
+        stat(DATAX.early_size, 'early finds below the floor'),
+        verifyChip()));
   }
   function stat(v, label) { return h('div', { class: 'stat' }, h('b', null, String(v)), h('span', null, label)); }
+  // A quiet audit seal beside the headline stats: the count of board rows that reconcile to board.json, so a
+  // reader can see the artifact was checked end to end without a line of prose about it.
+  function verifyChip() {
+    var nX = DATAX.board_size;
+    var labelX = 'board.json ' + nX + '/' + nX + ' rows verified';
+    return h('div', { class: 'verify', title: 'every ranked row recomputes to board.json', 'aria-label': labelX },
+      h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, '\u2713'), h('span', null, labelX));
+  }
 
   function kpis() {
     var pX = DATAX.pre_token_size, liveX = DATAX.live_size, aside = DATAX.set_aside_size;
@@ -509,7 +560,7 @@
     var liveX = stateX.tab === 'live', aside = stateX.tab === 'aside';
     var headX;
     if (aside) {
-      headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), th('tvl_usd', 'TVL', true), th('reason', 'Set aside because'));
+      headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), th('tvl_usd', 'TVL', true));
     } else if (liveX) {
       headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'), th('tvl_usd', 'TVL', true),
         th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mcap / TVL', true));
@@ -522,14 +573,16 @@
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
       if (aside) {
-        cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name)));
+        cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name), h('span', { class: 'plan' }, planLineX(rX))));
         cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
         cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
-        cellsX.push(h('td', null, h('span', { class: 'reason' }, rX.reason)));
         return h('tr', { class: 'static' }, cellsX);
       }
       cellsX.push(h('td', { class: 'num rank' }, liveX ? '' : String(rX.rank)));
-      cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name)));
+      var sublineX = liveX
+        ? 'already trades \u2014 shown apart from the ranked board'
+        : planLineX(rX);
+      cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name), h('span', { class: 'plan' }, sublineX)));
       cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
       var chainsX = rX.chains || [];
       // One complete chain chip per row, plus a "+n" chip for the rest: a single code that renders whole
@@ -541,15 +594,15 @@
       cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPctShort(rX.change_7d)));
       if (liveX) {
         cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.mcap_usd)));
-        cellsX.push(h('td', { class: 'num ratio' }, rX.mcap_usd && rX.tvl_usd ? (rX.mcap_usd / rX.tvl_usd).toFixed(2) + '×' : '—'));
+        cellsX.push(h('td', { class: 'num ratio' }, rX.mcap_usd && rX.tvl_usd ? (rX.mcap_usd / rX.tvl_usd).toFixed(1) + '×' : '—'));
       } else {
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
-        cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(2) + '×' : '—'));
+        cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(1) + '×' : '—'));
         cellsX.push(h('td', { class: 'num val' }, fmtShortUsdX(rX.implied_value_usd)));
         cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
-        cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtShortUsdX(rX.net_usd)));
-        cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtShortUsdX(rX.net_per_hour)));
+        cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtNetX(rX.net_usd)));
+        cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtNetRateX(rX.net_per_hour)));
         cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict)));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
