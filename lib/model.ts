@@ -556,6 +556,16 @@ export const EARLY_ROWSX = 210;
  */
 export const AIRDROP_SHAREX = 0.10;
 
+/**
+ * The fixed per-step fee this dashboard budgets for a farm plan, in US dollars. A plan averages seven steps,
+ * so a row's fee bill is this figure times the step count; it is declared here and applied identically to
+ * every row, so editing it once re-prices the whole board's fee column.
+ */
+export const STEP_FEE_USDX = 2.5;
+
+/** How many moves a farm plan lays out; the per-step fee is multiplied by this to bill a row. */
+export const FARM_STEP_COUNTX = 7;
+
 /** One farmX step: what to do, the associated cost, and the time it consumes. */
 export interface FarmStepX {
   text: string;
@@ -624,6 +634,7 @@ export interface RowEconomicsX {
   net_usd: number;
   net_hi_usd: number;
   net_per_hour: number;
+  net_label: string;
   verdictX: 'farm' | 'marginal' | 'skip';
 }
 
@@ -654,6 +665,7 @@ export interface RadarRowX {
   net_usd: number;
   net_hi_usd: number;
   net_per_hour: number;
+  net_label: string;
   verdictX: 'farm' | 'marginal' | 'skip';
 }
 
@@ -923,6 +935,8 @@ export function rowEconomicsX(pX: SnapshotProtocolX, impliedX: number, effective
   const netX = Math.round(allocX - gasX);
   const netHiX = Math.round(allocHiX - gasX);
   const netPerHourX = hoursX > 0 ? Math.round((netX / hoursX) * 100) / 100 : 0;
+  const feesX = Math.round(STEP_FEE_USDX * FARM_STEP_COUNTX);
+  const netLabelX = '$' + Math.round(allocX).toLocaleString('en-US') + ' airdrop drop \u2212 $' + feesX.toLocaleString('en-US') + ' fees net';
   // The call comes straight from the model's own uncertainty band rather than some multiple of gas: `farm`
   // if the point estimate nets positive (costs are covered); `marginal` if the point estimate nets zero or
   // below but the top of the band still nets positive (the position can cover costs inside the stated
@@ -939,6 +953,7 @@ export function rowEconomicsX(pX: SnapshotProtocolX, impliedX: number, effective
     net_usd: netX,
     net_hi_usd: netHiX,
     net_per_hour: netPerHourX,
+    net_label: netLabelX,
     verdict: verdictX,
   };
 }
@@ -1099,6 +1114,7 @@ export function radarRowX(row: BoardRowX): RadarRowX {
     net_usd: row.net_usd,
     net_hi_usd: row.net_hi_usd,
     net_per_hour: row.net_per_hour,
+    net_label: row.net_label,
     verdict: row.verdict,
   };
 }

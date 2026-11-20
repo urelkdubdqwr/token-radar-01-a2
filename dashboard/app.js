@@ -384,7 +384,7 @@
       headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
         th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No token for', true),
         th('ratio', 'Implied / TVL', true), th('value', 'Implied value', true),
-        th('band', 'Band', true), th('token_odds', 'Token Odds', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
+        th('band', 'Band', true), th('token_odds', 'Token Odds', true), th('net_usd', 'Net of fees', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
     }
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
@@ -410,6 +410,7 @@
         cellsX.push(h('td', { class: 'num val' }, fmtUsdX(rX.implied_value_usd)));
         cellsX.push(h('td', { class: 'num band' }, rX.band_lo_usd === undefined ? '—' : fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
+        cellsX.push(h('td', { class: 'num netline' }, rX.net_label || '—'));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
         cellsX.push(h('td', null, rX.verdictX === undefined ? '—' : h('span', { class: 'pill verdict-' + rX.verdictX }, rX.verdictX)));
       }
@@ -452,7 +453,8 @@
       if (rX.band_lo_usd !== undefined) {
         bodyX.appendChild(h('div', { class: 'math', html:
           'band: <b>' + fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd) + '</b> (the interquartile residual span around the curve)<br>' +
-          'netting: allocation <b>' + fmtMoney(rX.alloc_usd) + '</b> − gas <b>' + fmtMoney(rX.est_gas_usd) + '</b> over <b>' + rX.est_hours + '</b> hands-on hours = net <b>' + fmtMoney(rX.net_usd) + '</b>, at the upper band net <b>' + fmtMoney(rX.net_hi_usd) + '</b>: verdict <b>' + rX.verdict + '</b>.' }));
+          'netting: allocation <b>' + fmtMoney(rX.alloc_usd) + '</b> − gas <b>' + fmtMoney(rX.est_gas_usd) + '</b> over <b>' + rX.est_hours + '</b> hands-on hours = net <b>' + fmtMoney(rX.net_usd) + '</b>, at the upper band net <b>' + fmtMoney(rX.net_hi_usd) + '</b>: verdict <b>' + rX.verdict + '</b>.<br>' +
+          'plan net of fees: <b>' + esc(rX.net_label || 'n/a') + '</b> (7 steps × a stated $2.50 of gas and fees each).' }));
       }
       if (rX.token_odds !== undefined) {
         var baseX = (DATAX.token_odds && DATAX.token_odds.base_rate) || 0;
