@@ -179,12 +179,12 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
 .walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
+.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .375) 0 calc(var(--u) * .25); } /* loo heading */
 .loo { display: flex; flex-direction: column; gap: 2px; } /* loo list */
-.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
+.loo-row { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.2; } /* loo row */
 .loo-name { color: var(--ink); min-width: 70px; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
-.badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
+.badge { margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
 
