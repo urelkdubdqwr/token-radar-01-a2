@@ -40,10 +40,21 @@
   function fmtShortUsdX(nX) {
     if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
     var aX = Math.abs(nX), sign = nX < 0 ? '-' : '';
-    if (aX >= 1e9) return sign + '$' + (aX / 1e9).toFixed(1) + 'B';
-    if (aX >= 1e6) return sign + '$' + (aX / 1e6).toFixed(1) + 'M';
-    if (aX >= 1e3) return sign + '$' + Math.round(aX / 1e3) + 'K';
-    return sign + '$' + Math.round(aX);
+    if (aX >= 1e9) return sign + '$' + trimZeroX(aX / 1e9) + 'B';
+    if (aX >= 1e6) return sign + '$' + trimZeroX(aX / 1e6) + 'M';
+    if (aX >= 1e3) return sign + '$' + trimZeroX(aX / 1e3) + 'K';
+    if (aX >= 10) return sign + '$' + Math.round(aX);
+    return sign + '$' + aX.toFixed(2);
+  }
+  // One decimal, but a trailing ".0" is dropped ("$1.0M" -> "$1M", "$9.0K" -> "$9K"): the shortest label that
+  // still carries the magnitude, so a board cell never has to punt the tail of its number behind an ellipsis.
+  function trimZeroX(vX) { return vX.toFixed(1).replace(/\.0$/, ''); }
+  // Board TVL: the same magnitude ladder as fmtShortUsdX, so a headline size reads whole in a narrow column.
+  function fmtBoardUsd(nX) { return fmtShortUsdX(nX); }
+  // A one-place percentage for the board's seven-day growth cell, so "+24.1%" never collapses to "+24.1...".
+  function fmtPctShort(nX) {
+    if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
+    return (nX > 0 ? '+' : '') + nX.toFixed(1) + '%';
   }
   // The P25-P75 band, abridged to the unit so both ends share one cell without wrapping or clipping.
   function fmtBandX(loX, hiX) {
@@ -74,6 +85,43 @@
     return 'mid';
   }
   function esc(sX) { return String(sX).replace(/[&<>"]/g, function (cX) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[cX]; }); }
+
+  // Board-only display labels. The snapshot carries long, human category and chain names; inside the fixed
+  // board columns those never fit whole, so each name is mapped once to a short uppercase token that does.
+  // The drawer, the filters and every comparison still run off the raw strings — only the chip text changes.
+  function catLabelX(cX) {
+    var c = String(cX === null || cX === undefined ? '' : cX).toLowerCase();
+    if (c.indexOf('predict') >= 0) return 'PREDMKT';
+    if (c.indexOf('basis') >= 0) return 'BASIS';
+    if (c.indexOf('onchain') >= 0) return 'ONCHAIN';
+    if (c.indexOf('deriv') >= 0) return 'DERIV';
+    if (c.indexOf('perp') >= 0) return 'PERPS';
+    if (c.indexOf('real world') >= 0 || c.indexOf('rwa') >= 0) return 'RWA';
+    if (c.indexOf('liquid') >= 0 || c.indexOf('stak') >= 0) return 'LST';
+    if (c.indexOf('lend') >= 0) return 'LEND';
+    if (c.indexOf('bridge') >= 0) return 'BRIDGE';
+    if (c.indexOf('option') >= 0) return 'OPTS';
+    if (c.indexOf('yield') >= 0) return 'YIELD';
+    if (c.indexOf('dex') >= 0) return 'DEX';
+    var wordX = (c.split(/[^a-z0-9]+/).filter(Boolean)[0] || 'other').toUpperCase();
+    return wordX.length > 8 ? wordX.slice(0, 8) : wordX;
+  }
+  // Standard short tickers for the chains the snapshot lists; anything unlisted falls back to its first word,
+  // uppercased and kept to five characters, so a chain chip is a symbol rather than a clipped sentence.
+  var CHAIN_LABELSX = {
+    'ethereum': 'ETH', 'eth': 'ETH', 'binance': 'BNB', 'bnb chain': 'BNB', 'bnb': 'BNB',
+    'optimism': 'OP', 'op mainnet': 'OP', 'arbitrum': 'ARB', 'base': 'BASE', 'polygon': 'POL',
+    'solana': 'SOL', 'avalanche': 'AVAX', 'linea': 'LINEA', 'scroll': 'SCROLL', 'blast': 'BLAST',
+    'mantle': 'MANTLE', 'zksync era': 'ZK', 'zksync': 'ZK', 'gnosis': 'GNO', 'celo': 'CELO',
+    'berachain': 'BERA', 'hyperliquid': 'HYPE', 'sonic': 'S', 'unichain': 'UNI'
+  };
+  function chainLabelX(cX) {
+    var rawX = String(cX === null || cX === undefined ? '' : cX).trim();
+    var hitX = CHAIN_LABELSX[rawX.toLowerCase()];
+    if (hitX) return hitX;
+    var wordX = (rawX.split(/[^A-Za-z0-9]+/).filter(Boolean)[0] || 'CHAIN').toUpperCase();
+    return wordX.length > 5 ? wordX.slice(0, 5) : wordX;
+  }
 
   // The scoring formula, restated on the page from the snapshot's own numbers. implied = alpha x TVL^elasticity x
   // category x growth x maturity. Each row is recomputed on the page and shown to match board.json.
@@ -168,12 +216,12 @@
     var pX = DATAX.pre_token_size, liveX = DATAX.live_size, aside = DATAX.set_aside_size;
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
-      kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the house list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'the market pays less per dollar as TVL grows', ''),
-      kpi(FITX.comparables, 'comparables fitted', 'priced protocols the curve rests on', ''),
+      kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist', 'every slug on the house list', 'ok'),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'elasticity', 'the market pays less per dollar as TVL grows', ''),
+      kpi(FITX.comparables, 'comps fit', 'priced protocols the curve rests on', ''),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band about the curve (median ×' + FITX.median_abs_error.toFixed(2) + ')', 'accent'),
-      kpi(pX, 'pre-token on record', DATAX.board_size + ' ranked, ' + aside + ' set aside', ''),
-      kpi(liveX, 'tokens on record', 'shown apart, never mixed into the ranking', ''),
+      kpi(pX, 'pre-token', DATAX.board_size + ' ranked, ' + aside + ' set aside', ''),
+      kpi(liveX, 'tokens', 'shown apart, never mixed into the ranking', ''),
       oddsKpi());
   } // c
 
@@ -184,7 +232,7 @@
     var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
     var beatsX = brierX < baseBrierX;
-    return kpi(brierX.toFixed(3), 'token-odds Brier', 'base rate ' + (baseX * 100).toFixed(0) + '% \u2192 \u00d7' + ((baseX / Math.max(1 - baseX, 1e-9)).toFixed(2)) + ' odds; ' + (beatsX ? 'beats the base line ' : 'does not beat the base line ') + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
+    return kpi(brierX.toFixed(3), 'odds brier', 'base rate ' + (baseX * 100).toFixed(0) + '% \u2192 \u00d7' + ((baseX / Math.max(1 - baseX, 1e-9)).toFixed(2)) + ' odds; ' + (beatsX ? 'beats the base line ' : 'does not beat the base line ') + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
   } // c
   function kpi(value, label, sub, cls) {
     // The figure leads its caption on one tight line; the caption yields (ellipsis) before the number ever
@@ -456,33 +504,33 @@
     } else {
       headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
         th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No token for', true),
-        th('ratio', 'Implied / TVL', true), th('value', 'Implied value', true),
-        th('p25', 'P25–P75', true), th('token_odds', 'Token Odds', true), th('net_usd', 'Net of fees', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
+        th('ratio', 'Implied', true), th('value', 'Val', true),
+        th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
     }
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
       if (aside) {
-        cellsX.push(h('td', null, h('span', { class: 'pname' }, rX.name)));
-        cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, rX.category) : h('span', { class: 'flat' }, '—')));
-        cellsX.push(h('td', { class: 'num' }, fmtUsdX(rX.tvl_usd)));
+        cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name)));
+        cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
+        cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
         cellsX.push(h('td', null, h('span', { class: 'reason' }, rX.reason)));
         return h('tr', { class: 'static' }, cellsX);
       }
       cellsX.push(h('td', { class: 'num rank' }, liveX ? '' : String(rX.rank)));
-      cellsX.push(h('td', null, h('span', { class: 'pname' }, rX.name)));
-      cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, rX.category) : h('span', { class: 'flat' }, '—')));
+      cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name)));
+      cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
       var chainsX = rX.chains || [];
-      var shownX = chainsX.slice(0, 2).map(function (cX) { return h('span', null, cX); });
+      var shownX = chainsX.slice(0, 2).map(function (cX) { return h('span', { title: cX }, chainLabelX(cX)); });
       if (chainsX.length > 2) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 2)));
       cellsX.push(h('td', null, h('span', { class: 'chips' }, shownX)));
-      cellsX.push(h('td', { class: 'num' }, fmtUsdX(rX.tvl_usd)));
-      cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPct(rX.change_7d)));
+      cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
+      cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPctShort(rX.change_7d)));
       if (liveX) {
-        cellsX.push(h('td', { class: 'num' }, fmtUsdX(rX.mcap_usd)));
+        cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.mcap_usd)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.mcap_usd && rX.tvl_usd ? (rX.mcap_usd / rX.tvl_usd).toFixed(2) + '×' : '—'));
       } else {
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
-        cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(3) + '×' : '—'));
+        cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(2) + '×' : '—'));
         cellsX.push(h('td', { class: 'num val' }, fmtShortUsdX(rX.implied_value_usd)));
         cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));

@@ -24,12 +24,13 @@ a { color: var(--accent-2); } /* link tint */
 #app { max-width: 1360px; margin: 0 auto; padding: calc(var(--u) * .75) calc(var(--u) * 2.5) calc(var(--u) * 2); } /* page shell — tight top padding keeps the board high in the frame */
 
 /* Header */
-header.masthead { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 2); align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: calc(var(--u) * 1.25) 0; min-height: 92px; } /* hero band — title, subtitle and the three large KPIs share one horizontal row */
-.brand { display: flex; align-items: center; gap: calc(var(--u) * 1.25); min-width: 0; } /* brand cluster */
+header.masthead { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 3); align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: calc(var(--u) * 1.25) 0; min-height: 92px; } /* hero band — title, subtitle and the three large KPIs share one horizontal row, with a real gutter between the brand and the stats so nothing can collide */
+.brand { display: flex; align-items: center; gap: calc(var(--u) * 1.25); flex: 1 1 auto; min-width: 0; overflow: hidden; } /* brand cluster — shrinks first and clips its own subtitle rather than spilling into the KPIs */
+.brand > div { min-width: 0; } /* the title/subtitle column — allowed to shrink so its subtitle wraps in place */
 .tick { width: 34px; height: 34px; border-radius: 50%; position: relative; box-shadow: 0 0 0 1px var(--line) inset; } /* dial badge */
 .tick::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 2px solid var(--accent); border-top-color: transparent; border-right-color: transparent; transform: rotate(20deg); } /* sweeping needle */
 h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; } /* product name */
-.tag { color: var(--muted); font-size: 14px; letter-spacing: .04em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* subtitle line */
+.tag { color: var(--muted); font-size: 14px; letter-spacing: .04em; margin-top: 2px; white-space: normal; overflow-wrap: break-word; max-width: 100%; } /* subtitle line — wraps at a word break inside the brand cluster if the row is tight, so it stays fully readable and can never ride into the KPI text */
 .stats { display: flex; gap: calc(var(--u) * 2.5); flex-wrap: nowrap; align-items: center; flex: 0 0 auto; } /* three large KPIs sit inline in the hero band */
 .stat { text-align: right; } /* right aligned figures */
 .stat b { display: block; font-family: var(--mono); font-size: 22px; color: var(--ink); } /* big number */
@@ -65,11 +66,14 @@ select { background: var(--panel); border: 1px solid var(--line); color: var(--i
 /* Table */
 .board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 820px; } /* table frame — tall enough for well over eight single-line rows so the 1440 frame, never the board, is the limit */
 table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout: fixed; } /* grid base — larger row type, fixed layout keeps every column inside the frame */
-thead th { text-align: left; padding: 8px 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell */
+thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 19px 6px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — one line per row at ~64px, so eight rows clear the frame */
+tbody td { padding: 16px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — tight vertical padding (taken from padding, not the type) keeps single rows short so thirteen-plus clear the frame even if a name wraps */
 tbody td.num { white-space: nowrap; } /* numeric cells stay on one line */
+/* The protocol-name cell is the one free-text column: it wraps to a second line inside its own row rather than
+   clipping a long name behind a mid-word ellipsis. Everything else stays single-line. */
+tbody td.name { white-space: normal; overflow: visible; overflow-wrap: break-word; }
 tbody tr { cursor: pointer; } /* row is interactive */
 tbody tr:hover { background: #0e1a2c; } /* hover wash */
 tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /* selected row */
@@ -81,19 +85,19 @@ tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /
 .chips span.more { color: var(--muted); background: transparent; } /* overflow count tag */
 /* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. */
 .board th:nth-child(1), .board td:nth-child(1) { width: 3%; }
-.board th:nth-child(2), .board td:nth-child(2) { width: 8.5%; }
-.board th:nth-child(3), .board td:nth-child(3) { width: 6.5%; }
-.board th:nth-child(4), .board td:nth-child(4) { width: 11.5%; }
-.board th:nth-child(5), .board td:nth-child(5) { width: 6.5%; }
+.board th:nth-child(2), .board td:nth-child(2) { width: 15.5%; }
+.board th:nth-child(3), .board td:nth-child(3) { width: 7.5%; }
+.board th:nth-child(4), .board td:nth-child(4) { width: 7.5%; }
+.board th:nth-child(5), .board td:nth-child(5) { width: 6%; }
 .board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; }
-.board th:nth-child(7), .board td:nth-child(7) { width: 6%; }
-.board th:nth-child(8), .board td:nth-child(8) { width: 6%; }
-.board th:nth-child(9), .board td:nth-child(9) { width: 7.5%; }
-.board th:nth-child(10), .board td:nth-child(10) { width: 11.5%; }
-.board th:nth-child(11), .board td:nth-child(11) { width: 5.5%; }
-.board th:nth-child(12), .board td:nth-child(12) { width: 7.5%; }
-.board th:nth-child(13), .board td:nth-child(13) { width: 6%; }
-.board th:nth-child(14), .board td:nth-child(14) { width: 8%; }
+.board th:nth-child(7), .board td:nth-child(7) { width: 7.5%; }
+.board th:nth-child(8), .board td:nth-child(8) { width: 5.5%; }
+.board th:nth-child(9), .board td:nth-child(9) { width: 7%; }
+.board th:nth-child(10), .board td:nth-child(10) { width: 10%; }
+.board th:nth-child(11), .board td:nth-child(11) { width: 4%; }
+.board th:nth-child(12), .board td:nth-child(12) { width: 6.5%; }
+.board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; }
+.board th:nth-child(14), .board td:nth-child(14) { width: 9%; }
 .val { color: var(--accent); font-weight: 600; } /* headline value */
 .pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
 .ratio { color: var(--warn); } /* multiple tint */
