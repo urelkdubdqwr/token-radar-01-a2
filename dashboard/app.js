@@ -293,9 +293,21 @@
         oosItem('flat baseline', '×' + (oX.flat_miss_median || 0).toFixed(2), 'one multiple for all'),
         oosItem('time-split miss', '×' + (oX.split_miss || 0).toFixed(2), oX.split_tested + ' newer held out'),
         oosItem('split baseline', '×' + (oX.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
+      calStrip(),
       h('p', { class: 'note' }, beatsX
         ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
         : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
+  }
+
+  // Is the printed rank honest? For each TVL tier, the out-of-sample share of priced protocols whose value
+  // the curve lands within a factor of two of. Compact strip of percentages.
+  function calStrip() {
+    var cX = FITX.calibration || [];
+    return h('div', { class: 'calstrip' },
+      h('div', { class: 'calstrip-h' }, 'Printed-rank honesty — share within ×0.5–×2, out of sample'),
+      h('div', { class: 'calstrip-row' }, cX.map(function (tX) {
+        return h('div', { class: 'cal-cell' }, h('b', null, (tX.pct * 100).toFixed(0) + '%'), h('span', null, tX.tier), h('em', null, tX.n + ' held out'));
+      })));
   }
   function oosItem(label, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
 

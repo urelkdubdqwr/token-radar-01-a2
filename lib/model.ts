@@ -706,6 +706,7 @@ export interface FitSummaryX {
   out_of_sample: OutOfSampleX;
   walk_forward: WalkForwardX;
   feature_loo: FeatureLooX[];
+  calibration: { tier: string; pct: number; n: number }[];
 }
 
 /**
@@ -1104,6 +1105,32 @@ export function categoryPeersX(snapshotX: SnapshotX): Record<string, { name: str
 }
 
 /**
+ * The honesty of the printed rank, by TVL tier: for each size bucket, the share of priced protocols whose
+ * leave-one-out forecast lands within a factor of two of the market's own cap (x0.5..x2). Out-of-sample by
+ * construction (each protocol is graded by a curve refit without it). A tier pass means the stated value is
+ * no more than a doubling away from reality for that share of protocols.
+ */
+export function calibrationStripX(pairs: SnapshotProtocolX[]): { tier: string; pct: number; n: number }[] {
+  const tiersX = [
+    { tier: '$5M\u2013$50M', lo: 5e6, hi: 5e7 },
+    { tier: '$50M\u2013$250M', lo: 5e7, hi: 2.5e8 },
+    { tier: '$250M\u2013$1B', lo: 2.5e8, hi: 1e9 },
+    { tier: '$1B+', lo: 1e9, hi: Infinity },
+  ];
+  return tiersX.map((tX) => {
+    const membersX = pairs.filter((pX) => pX.tvl_usd >= tX.lo && pX.tvl_usd < tX.hi);
+    let hitsX = 0;
+    for (const heldX of membersX) {
+      const predictX = curvePredictorX(pairs.filter((_p, j) => pairs[j] !== heldX));
+      if (predictX === null) continue;
+      const ratioX = predictX(heldX.tvl_usd) / (heldX.mcap_usd as number);
+      if (ratioX >= 0.5 && ratioX <= 2) hitsX += 1;
+    }
+    return { tier: tX.tier, pct: membersX.length === 0 ? 0 : hitsX / membersX.length, n: membersX.length };
+  });
+}
+
+/**
  * A tiny deterministic PRNG (mulberry32): seeded once, it yields the same stream every run, so the
  * bootstrap below is reproducible. No clock and no Math.random reach the model.
  */
@@ -1230,6 +1257,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
       out_of_sample: calX.out_of_sample,
       walk_forward: walkForwardX(pricedPairsX),
       feature_loo: featureLooX(pricedPairsX, snapshotX.as_of, model, calX),
+      calibration: calibrationStripX(pricedPairsX),
     },
     watchlist_size: snapshotX.watchlist.length,
     board_size: boardX.length,
