@@ -257,6 +257,8 @@
     var xsX = ptsX.map(function (pX) { return pX.x; }), ysX = ptsX.map(function (pX) { return pX.y; });
     var x0X = Math.min.apply(null, xsX), x1 = Math.max.apply(null, xsX), y0 = Math.min.apply(null, ysX), y1 = Math.max.apply(null, ysX);
     if (x1 === x0X) x1 = x0X + 1; if (y1 === y0) y1 = y0 + 1;
+    var xpadX = (x1 - x0X) * 0.01, ypadX = (y1 - y0) * 0.01;
+    x0X -= xpadX; x1 += xpadX; y0 -= ypadX; y1 += ypadX;
     var sxX = function (v) { return padL + (v - x0X) / (x1 - x0X) * (WX - padL - padR); };
     var syX = function (v) { return H - padB - (v - y0) / (y1 - y0) * (H - padT - padB); };
     var sX = svg('svg', { viewBox: '0 0 ' + WX + ' ' + H, width: '100%', height: 'auto', role: 'img', 'aria-label': 'log-log scatter of market cap versus TVL with the fitted curve' });
@@ -272,9 +274,13 @@
       else sX.appendChild(svg('rect', { x: (sxX(pX.x) - 3).toFixed(1), y: (syX(pX.y) - 3).toFixed(1), width: 6, height: 6, fill: '#38e0c8' }));
     });
     // annotate the two axes
-    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'middle' }, 'TVL (log₁₀ dollars)'));
-    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log₁₀ dollars)');
+    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle' }, 'TVL (log₁₀ dollars)'));
+    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log₁₀ dollars)');
     sX.appendChild(ylX);
+    // The cloud sits low-left, so the fitted curve is named in the clear upper-right corner the points leave open.
+    var txX = WX - padR - 12, tyX = padT + 18;
+    sX.appendChild(svg('text', { x: txX, y: tyX, fill: '#6ea8ff', 'font-size': 12, 'text-anchor': 'end', 'font-weight': 700 }, 'fitted curve \u2014 \u00d7' + (FITX.alpha||0).toPrecision(2) + ' \u00b7 TVL^' + FITX.elasticity.toFixed(2)));
+    sX.appendChild(svg('text', { x: txX, y: tyX + 17, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'end' }, 'log\u2081\u2080 value = ' + laX.toFixed(2) + ' + ' + FITX.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL'));
     var legendX = h('div', { class: 'legend' },
       h('span', { class: 'dot' }, '● priced protocol'),
       h('span', { class: 'sq' }, '■ ranked pre-token row'),
