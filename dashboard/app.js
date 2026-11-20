@@ -190,7 +190,24 @@
   // The model together with its out-of-sample check, placed ahead of the table: a scatter of the priced
   // universe alongside the ranked rows and the fitted curve, the miss factors, and the netted verdicts.
   function analytics() {
-    return h('section', { class: 'analytics' }, scatterCard(), oosCard(), walkCard(), verdictCard());
+    return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), oosCard(), walkCard(), verdictCard());
+  } // c
+
+  // The lifecycle accounting: one full-width stacked bar of every snapshot protocol, computed in the model,
+  // each segment labelled with its own count so the slices read without a legend.
+  function accountingCard() {
+    var aX = DATAX.accounting || { total: 0, bars: [] };
+    var segsX = (aX.bars || []).map(function (bX) {
+      var pctX = aX.total ? (bX.count / aX.total * 100) : 0;
+      return h('div', { class: 'acct-seg', style: 'flex:' + bX.count + ' 0 0;background:' + bX.color, title: bX.label + ': ' + bX.count },
+        h('span', null, bX.count));
+    });
+    var keysX = (aX.bars || []).map(function (bX) {
+      return h('li', null, h('i', { style: 'background:' + bX.color }), h('span', { class: 'acct-lbl' }, bX.label), h('b', null, String(bX.count)));
+    });
+    return card('Protocol accounting', 'all ' + (aX.total || 0) + ' protocols by lifecycle, disjoint and summing to the whole',
+      h('div', { class: 'acct-bar' }, segsX),
+      h('ul', { class: 'acct-key' }, keysX));
   } // c
 
   // Walk-forward panel: five sequential folds the curve never trained on, each graded against a flat

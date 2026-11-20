@@ -704,6 +704,15 @@ export interface FitSummaryX {
   feature_loo: FeatureLooX[];
 }
 
+/**
+ * The whole snapshot split into disjoint lifecycle buckets, so the counts add up to the protocol total.
+ * `bars` carries the ordered segments the dashboard paints as one stacked bar.
+ */
+export interface AccountingX {
+  total: number;
+  bars: { key: string; label: string; count: number; color: string }[];
+}
+
 /** The full payload the dashboard relies on: the board, the live set, the set-aside set, plus the model it runs. */
 export interface RadarDataX {
   as_of: string;
@@ -723,6 +732,7 @@ export interface RadarDataX {
   set_aside: SetAsideRowX[];
   category_peers: Record<string, { name: string; multiple: number }[]>;
   token_odds: TokenOddsX;
+  accounting: AccountingX;
 }
 
 /** The reasons a snapshot falls outside what this model is able to score. */
@@ -1086,6 +1096,35 @@ export function categoryPeersX(snapshotX: SnapshotX): Record<string, { name: str
   return outX;
 }
 
+/**
+ * The snapshot's whole set split into five disjoint lifecycle buckets, each classified in one pass so the
+ * counts sum to the protocol total: a row with a market cap trades already; a row carrying a symbol or a
+ * CoinGecko id but no cap is recorded, not yet priced; a cap-less row on the watchlist is queued; one the
+ * house rule sets aside is parked; anything else is a pre-token protocol below the floor. The dashboard
+ * paints these as one stacked bar.
+ */
+export function buildAccountingX(snapshotX: SnapshotX): AccountingX {
+  const watchX = new Set(snapshotX.watchlist);
+  const countsX = { trade: 0, recorded: 0, watchlist: 0, below: 0, aside: 0 };
+  for (const pX of snapshotX.protocols) {
+    if (pX.mcap_usd !== null && pX.mcap_usd > 0) countsX.trade += 1;
+    else if (pX.symbol !== null || pX.gecko_id !== null) countsX.recorded += 1;
+    else if (watchX.has(pX.slug)) countsX.watchlist += 1;
+    else if (exclusionReasonX(pX) !== null) countsX.aside += 1;
+    else countsX.below += 1;
+  }
+  return {
+    total: snapshotX.protocols.length,
+    bars: [
+      { key: 'watchlist', label: 'On watchlist', count: countsX.watchlist, color: '#38e0c8' },
+      { key: 'below', label: 'Pre-token below the floor', count: countsX.below, color: '#2f6f8f' },
+      { key: 'trade', label: 'Token already trades', count: countsX.trade, color: '#6ea8ff' },
+      { key: 'recorded', label: 'Token recorded', count: countsX.recorded, color: '#8b6ea8' },
+      { key: 'aside', label: 'Set aside (products, pools)', count: countsX.aside, color: '#5c4a2b' },
+    ],
+  };
+}
+
 /** Compact per-row shape used by data.js; the farm plan itself is built in the page. */
 export function radarRowX(row: BoardRowX): RadarRowX {
   return {
@@ -1156,6 +1195,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
     set_aside: setAsideX,
     category_peers: categoryPeersX(snapshotX),
     token_odds: fitTokenOddsX(snapshotX, model),
+    accounting: buildAccountingX(snapshotX),
   };
   return { board: boardX, radar: radarX }; // c
 }

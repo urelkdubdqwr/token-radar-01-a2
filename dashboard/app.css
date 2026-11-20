@@ -111,6 +111,15 @@ footer { margin-top: calc(var(--u) * 5); color: var(--dim); font-size: 11.5px; b
 .card-sub { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.45; } /* card subheading */
 .card .note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: calc(var(--u) * 1.25) 0 0; } /* card note */
 
+/* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
+.analytics .card:first-child { grid-column: 1 / -1; } /* full-width accounting card */
+.acct-bar { display: flex; width: 100%; height: 30px; border-radius: 7px; overflow: hidden; border: 1px solid var(--line); } /* stacked band */
+.acct-seg { display: flex; align-items: center; justify-content: center; min-width: 0; color: #04121a; font-family: var(--mono); font-size: 11px; font-weight: 700; overflow: hidden; } /* one slice */
+.acct-key { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 1.5); list-style: none; margin: calc(var(--u) * 1.25) 0 0; padding: 0; font-size: 11px; color: var(--muted); } /* key row */
+.acct-key li { display: inline-flex; align-items: center; gap: 6px; } /* key entry */
+.acct-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; } /* swatch */
+.acct-key b { color: var(--ink); font-family: var(--mono); } /* count */
+
 /* Scatter: the inline SVG stretches to the card at a set aspect ratio; axis labels stay small and subdued. */
 .scatter-wrap { width: 100%; aspect-ratio: 560 / 340; background: #0a1526; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; } /* plot frame */
 .scatter-wrap svg { display: block; width: 100%; height: 100%; } /* plot canvas */
