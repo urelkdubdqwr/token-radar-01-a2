@@ -224,7 +224,7 @@
         h('td', { class: 'num ' + (fX.miss <= fX.flat_miss ? 'pos' : 'neg') }, '×' + fX.flat_miss.toFixed(2)));
     });
     var headX = h('tr', null, h('th', null, 'Fold'), h('th', { class: 'num' }, 'Train'), h('th', { class: 'num' }, 'Held out'),
-      h('th', { class: 'num' }, 'Curve miss'), h('th', { class: 'num' }, 'Flat miss'));
+      h('th', { class: 'num' }, 'Curve'), h('th', { class: 'num' }, 'Flat'));
     var looX = (FITX.feature_loo || []).map(function (fX) {
       return h('div', { class: 'loo-row' },
         h('span', { class: 'loo-name' }, fX.feature),
@@ -232,7 +232,9 @@
         h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
     });
     return card('Walk-forward validation', 'the curve, refit on each training side and graded on the fold it never saw',
-      h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
+      h('div', null,
+        h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
+        h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
       h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
         + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — taken out-of-sample, in-sample it sits at the fitted curve above.'),
       h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
@@ -311,16 +313,27 @@
   }
   function oosItem(label, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
 
+  // One verdict taxonomy shared by the netted-verdicts badges and the board's verdict chips: a row's verdict
+  // is its own `verdict` field, counted over the ranked board only, so a badge's number always equals the
+  // number of board rows its chip filters to.
+  var VERDICT_KINDS = ['farm', 'marginal', 'skip'];
+  function verdictCounts() {
+    var tallyX = {};
+    VERDICT_KINDS.forEach(function (k) { tallyX[k] = 0; });
+    DATAX.rows.forEach(function (rX) { if (tallyX[rX.verdict] !== undefined) tallyX[rX.verdict]++; });
+    return tallyX;
+  }
   function verdictCard() {
-    var farmX = 0, marginal = 0, skip = 0;
-    DATAX.rows.forEach(function (rX) { if (rX.verdict === 'farm') farmX++; else if (rX.verdict === 'marginal') marginal++; else skip++; });
+    var tallyX = verdictCounts();
     var bestX = null;
     DATAX.rows.forEach(function (rX) { if (bestX === null || rX.net_per_hour > bestX.net_per_hour) bestX = rX; });
     return card('Netted verdicts', 'the model\'s plain reading of each ranked row',
-      h('div', { class: 'verdict-strip' },
-        verdictPill('farm', farmX, 'clears its costs'),
-        verdictPill('marginal', marginal, 'clears only at the upper band'),
-        verdictPill('skip', skip, 'the band cannot clear it')),
+      h('div', null,
+        h('div', { class: 'verdict-strip' },
+          verdictPill('farm', tallyX.farm, 'clears its costs'),
+          verdictPill('marginal', tallyX.marginal, 'clears only at the upper band'),
+          verdictPill('skip', tallyX.skip, 'the band cannot clear it')),
+        h('p', { class: 'verdict-scope' }, 'Counts cover the ranked pre-token board only — the same rows each matching verdict chip filters; the set-aside and token-on-record tabs are not included.')),
       bestX ? h('p', { class: 'note' }, 'Best net per hour: ' + bestX.name + ' at ' + fmtMoney(bestX.net_per_hour, 2) + ' an hour (verdict ' + bestX.verdict + ').') : null);
   }
   function verdictPill(kind, nX, sub) { return h('div', { class: 'verdict-pill ' + kind }, h('b', null, String(nX)), h('span', null, kind), h('em', null, sub)); }
@@ -346,7 +359,7 @@
     catSelX.value = stateX.cat;
     var chainSelX = h('select', { onchange: function (e) { stateX.chain = e.target.value; paint(); } }, optionsOf(allChains(), 'Every chain'));
     chainSelX.value = stateX.chain;
-    var searchX = h('input', { type: 'search', placeholder: 'Search name, category or chain…', value: stateX.q, oninput: function (e) { stateX.q = e.target.value; paint(); } });
+    var searchX = h('input', { type: 'search', placeholder: 'Search name or chain…', value: stateX.q, oninput: function (e) { stateX.q = e.target.value; paint(); } });
     var tabsX = h('div', { class: 'tabs', role: 'tablist' },
       tabBtn('board', 'Pre-token board'), tabBtn('live', 'Token on record'), tabBtn('aside', 'Set aside'));
     var kidsX = [tabsX, searchX, catSelX, chainSelX];
@@ -358,7 +371,7 @@
 
   // Verdict filter for the board tab: one "all" chip plus a chip per verdict, rendered as small toggles next to the selects.
   function verdictChips() {
-    var kindsX = ['all', 'farm', 'marginal', 'skip'];
+    var kindsX = ['all'].concat(VERDICT_KINDS);
     return h('div', { class: 'verdict-chips', role: 'group', 'aria-label': 'filter by verdict' },
       kindsX.map(function (k) {
         return h('button', { class: 'chip' + (stateX.verdict === k ? ' on' : ''), 'aria-pressed': String(stateX.verdict === k), onclick: function () { stateX.verdict = k; paint(); } }, k);
