@@ -172,7 +172,36 @@
   // The model together with its out-of-sample check, placed ahead of the table: a scatter of the priced
   // universe alongside the ranked rows and the fitted curve, the miss factors, and the netted verdicts.
   function analytics() {
-    return h('section', { class: 'analytics' }, scatterCard(), oosCard(), verdictCard());
+    return h('section', { class: 'analytics' }, scatterCard(), oosCard(), walkCard(), verdictCard());
+  } // c
+
+  // Walk-forward panel: five sequential folds the curve never trained on, each graded against a flat
+  // multiple, then a per-feature leave-one-out table. A feature is called out as "tested, not kept" when
+  // dropping it does not worsen the held-out miss, i.e. it earns nothing.
+  function walkCard() {
+    var wX = FITX.walk_forward || { folds: [], miss: 0, flat_miss: 0, tested: 0 };
+    var rowsX = (wX.folds || []).map(function (fX) {
+      return h('tr', null,
+        h('td', { class: 'num' }, 'F' + fX.fold),
+        h('td', { class: 'num' }, String(fX.train)),
+        h('td', { class: 'num' }, String(fX.test)),
+        h('td', { class: 'num' }, '×' + fX.miss.toFixed(2)),
+        h('td', { class: 'num ' + (fX.miss <= fX.flat_miss ? 'pos' : 'neg') }, '×' + fX.flat_miss.toFixed(2)));
+    });
+    var headX = h('tr', null, h('th', null, 'Fold'), h('th', { class: 'num' }, 'Train'), h('th', { class: 'num' }, 'Held out'),
+      h('th', { class: 'num' }, 'Curve miss'), h('th', { class: 'num' }, 'Flat miss'));
+    var looX = (FITX.feature_loo || []).map(function (fX) {
+      return h('div', { class: 'loo-row' },
+        h('span', { class: 'loo-name' }, fX.feature),
+        h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
+        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
+    });
+    return card('Walk-forward validation', 'the curve, refit on each training side and graded on the fold it never saw',
+      h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
+      h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
+        + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — taken out-of-sample, in-sample it sits at the fitted curve above.'),
+      h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
+      h('div', { class: 'loo' }, looX));
   } // c
 
   function svg(tag, attrs, text) {
@@ -219,9 +248,12 @@
 
   function oosCard() {
     var oX = (FITX.out_of_sample) || {};
+    var wX = (FITX.walk_forward) || {};
     var beatsX = (oX.miss_median || 0) < (oX.flat_miss_median || 0) && (oX.split_miss || 0) < (oX.split_flat_miss || 0);
     return card('Out of sample', 'the curve, tested on protocols it did not fit',
       h('div', { class: 'oos-grid' },
+        oosItem('in-sample miss', '×' + (FITX.median_abs_error || 0).toFixed(2), 'the fitted curve, itself'),
+        oosItem('walk-forward miss', '×' + (wX.miss || 0).toFixed(2), (wX.tested || 0) + ' across 5 folds'),
         oosItem('leave-one-out miss', '×' + (oX.miss_median || 0).toFixed(2), oX.tested + ' held out'),
         oosItem('flat baseline', '×' + (oX.flat_miss_median || 0).toFixed(2), 'one multiple for all'),
         oosItem('time-split miss', '×' + (oX.split_miss || 0).toFixed(2), oX.split_tested + ' newer held out'),

@@ -127,6 +127,21 @@ footer { margin-top: calc(var(--u) * 5); color: var(--dim); font-size: 11.5px; b
 .oos-item .k-value { font-family: var(--mono); font-size: 20px; color: var(--ink); margin-top: 2px; font-variant-numeric: tabular-nums; } /* box figure */
 .oos-item .k-sub { font-size: 11px; color: var(--muted); margin-top: 2px; } /* box footnote */
 
+/* Walk-forward fold table and the per-feature leave-one-out strip. */
+.walk { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid */
+.walk th { text-align: right; padding: 5px 8px; color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid var(--line); } /* fold head */
+.walk th:first-child { text-align: left; } /* fold label column */
+.walk td { padding: 4px 8px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; border-bottom: 1px solid #ffffff0d; } /* fold cell */
+.walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
+.loose-head { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * 1.5) 0 calc(var(--u) * .75); } /* loo heading */
+.loo { display: flex; flex-direction: column; gap: 4px; } /* loo list */
+.loo-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; } /* loo row */
+.loo-name { color: var(--ink); min-width: 70px; } /* feature name */
+.loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
+.badge { margin-left: auto; font-size: 10px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
+.badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
+.badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
+
 /* Verdict pills and the strip — sized like a chain chip, one colour per verdict. */
 .verdict-strip { display: flex; flex-wrap: wrap; gap: calc(var(--u)); } /* strip of verdicts */
 .verdict-pill { display: inline-flex; align-items: baseline; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 11px; } /* verdict chip */

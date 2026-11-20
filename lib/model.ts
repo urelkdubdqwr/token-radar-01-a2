@@ -116,6 +116,36 @@ export interface OutOfSampleX {
   split_tested: number;
 }
 
+/**
+ * One walk-forward fold's grade: the held-out slice's median miss for the fitted curve and for the flat
+ * baseline, plus how many protocols trained and tested it. Five sequential folds, cut by TVL quantile.
+ */
+export interface WalkFoldX {
+  fold: number;
+  train: number;
+  test: number;
+  miss: number;
+  flat_miss: number;
+}
+
+/** The walk-forward panel in full: per-fold grades, then the pooled miss across every held-out fold. */
+export interface WalkForwardX {
+  folds: WalkFoldX[];
+  miss: number;
+  flat_miss: number;
+  tested: number;
+}
+
+/**
+ * A single feature's leave-one-out grade. `miss` is the median miss of a curve that has had this feature
+ * dropped; `kept` is true only when removing it makes the held-out fit worse, i.e. the feature earns its place.
+ */
+export interface FeatureLooX {
+  feature: string;
+  miss: number;
+  kept: boolean;
+}
+
 const MIN_PEERSX = 3;
 
 /** Middle value of a set of finite numbers; null if there are none. */
@@ -162,7 +192,7 @@ function curvePredictorX(heldX: SnapshotProtocolX[]): ((tvl: number) => number) 
   const ysX = heldX.map((pX) => Math.log(pX.mcap_usd as number));
   const fitX = fitLogLogX(xsX, ysX);
   if (fitX === null) return null;
-  return (tvl: number) => Math.exp(fitX.aX + fitX.bX * Math.log(Math.max(tvl, 1)));
+  return (tvl: number) => Math.exp(fitX.a + fitX.b * Math.log(Math.max(tvl, 1)));
 }
 
 /** The flat baseline predictor: the set's median multiple of market cap over TVL, scaled by a TVL. */
@@ -280,6 +310,109 @@ function outOfSampleX(pairs: SnapshotProtocolX[]): OutOfSampleX {
     split_tested: newerX.length,
   }; // c
 } // c
+
+/**
+ * The model's components, each a multiplicative factor the curve may or may not carry, used both by the
+ * feature leave-one-out and by the walk-forward refit. `size` is the log-log elasticity; `category` is the
+ * category multiple; `growth` and `maturity` are the row's own pre-token multipliers. Every piece is read off
+ * the snapshot, none of it is random.
+ */
+const FEATURESX = ['size', 'category', 'growth', 'maturity'] as const;
+
+/**
+ * A per-protocol multiplier bundle built from one protocol's own record, with the named features kept and
+ * everything else folded to 1. The curve proper lives in `alpha`/`elasticity`; this supplies the residual
+ * factors. `drop` names the single feature to leave out, or null to keep them all.
+ */
+function factorsForX(pX: SnapshotProtocolX, asOf: string, model: ModelConstantsX, calX: CalibrationX, drop: string | null): { cat: number; growth: number; maturity: number } {
+  const growthPctX = Math.min(model.growth_cap, Math.max(model.growth_floor, pX.change_7d ?? 0));
+  const growthX = drop === 'growth' ? 1 : 1 + (growthPctX / 100) * model.growth_weight;
+  const ageX = ageDaysX(asOf, pX.listed_at) ?? model.unknown_age_days;
+  const maturityX = drop === 'maturity' ? 1 : model.maturity_floor + (Math.min(Math.max(ageX, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
+  const catX = drop === 'category' ? 1 : categoryMultipleX(calX, pX.category);
+  return { cat: catX, growth: growthX, maturity: maturityX };
+}
+
+/**
+ * Five sequential walk-forward folds over the priced protocols, cut by TVL quantile: sort ascending, slice
+ * into five contiguous blocks, train the curve on everything outside a block and grade the block it held out,
+ * and do the same against a flat multiple. The pooled miss is the median across every held-out protocol.
+ */
+function walkForwardX(pairs: SnapshotProtocolX[]): WalkForwardX {
+  const byTvlX = [...pairs].sort((aX, bX) => aX.tvl_usd - bX.tvl_usd || (aX.slug < bX.slug ? -1 : aX.slug > bX.slug ? 1 : 0));
+  const foldCountX = 5;
+  const foldsX: WalkFoldX[] = [];
+  const pooledMiss: number[] = [];
+  const pooledFlat: number[] = [];
+  const perX = Math.max(1, Math.ceil(byTvlX.length / foldCountX));
+  for (let f = 0; f < foldCountX; f++) {
+    const testX = byTvlX.slice(f * perX, (f + 1) * perX);
+    if (testX.length === 0) continue;
+    const trainX = byTvlX.filter((_p, i) => i < f * perX || i >= (f + 1) * perX);
+    const predictX = curvePredictorX(trainX);
+    const flatX = flatPredictorX(trainX);
+    const missListX: number[] = [];
+    const flatListX: number[] = [];
+    for (const heldX of testX) {
+      if (predictX !== null) missListX.push(missRatioX(predictX(heldX.tvl_usd), heldX.mcap_usd as number));
+      if (flatX !== null) flatListX.push(missRatioX(flatX(heldX.tvl_usd), heldX.mcap_usd as number));
+    }
+    pooledMiss.push(...missListX);
+    pooledFlat.push(...flatListX);
+    const mX = medianX(missListX.filter((vX) => Number.isFinite(vX)));
+    const fmX = medianX(flatListX.filter((vX) => Number.isFinite(vX)));
+    foldsX.push({
+      fold: f + 1,
+      train: trainX.length,
+      test: testX.length,
+      miss: mX === null ? 0 : Math.round(mX * 1000) / 1000,
+      flat_miss: fmX === null ? 0 : Math.round(fmX * 1000) / 1000,
+    });
+  }
+  const poolMissX = medianX(pooledMiss.filter((vX) => Number.isFinite(vX)));
+  const poolFlatX = medianX(pooledFlat.filter((vX) => Number.isFinite(vX)));
+  return {
+    folds: foldsX,
+    miss: poolMissX === null ? 0 : Math.round(poolMissX * 1000) / 1000,
+    flat_miss: poolFlatX === null ? 0 : Math.round(poolFlatX * 1000) / 1000,
+    tested: pooledMiss.filter((vX) => Number.isFinite(vX)).length || pooledFlat.length,
+  };
+}
+
+/**
+ * Each feature's leave-one-out grade over the priced protocols. The baseline is a leave-one-out refit of the
+ * full model; then each feature is dropped in turn (size becomes a flat multiple, category/growth/maturity
+ * fold to 1) and the same held-out grading is repeated. A feature is `kept` only when dropping it makes the
+ * held-out miss worse, so `kept` marks the components that actually earn their place.
+ */
+function featureLooX(pairs: SnapshotProtocolX[], asOf: string, model: ModelConstantsX, calX: CalibrationX): FeatureLooX[] {
+  const looMissX = (drop: string | null): number => {
+    const missList: number[] = [];
+    for (let i = 0; i < pairs.length; i++) {
+      const heldX = pairs[i]!;
+      const othersX = pairs.filter((_p, j) => j !== i);
+      let predictedX: number;
+      if (drop === 'size') {
+        const flatX = flatPredictorX(othersX);
+        if (flatX === null) continue;
+        predictedX = flatX(heldX.tvl_usd);
+      } else {
+        const predictX = curvePredictorX(othersX);
+        if (predictX === null) continue;
+        const fx = factorsForX(heldX, asOf, model, calX, drop);
+        predictedX = predictX(heldX.tvl_usd) * fx.cat * fx.growth * fx.maturity;
+      }
+      missList.push(missRatioX(predictedX, heldX.mcap_usd as number));
+    }
+    const mX = medianX(missList.filter((vX) => Number.isFinite(vX)));
+    return mX === null ? 0 : Math.round(mX * 1000) / 1000;
+  };
+  const baselineX = looMissX(null);
+  return FEATURESX.map((featureX) => {
+    const droppedX = looMissX(featureX);
+    return { feature: featureX, miss: droppedX, kept: droppedX > baselineX + 1e-9 };
+  });
+}
 
 /** Which multiple a calibration assigns to a protocol's category; falls back to 1 when peers are too few. */
 export function categoryMultipleX(calX: CalibrationX, category: string | null): number {
@@ -432,6 +565,8 @@ export interface FitSummaryX {
   median_abs_error: number;
   categories: number;
   out_of_sample: OutOfSampleX;
+  walk_forward: WalkForwardX;
+  feature_loo: FeatureLooX[];
 }
 
 /** The full payload the dashboard relies on: the board, the live set, the set-aside set, plus the model it runs. */
@@ -847,6 +982,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
   const liveX = liveRowsX(snapshotX);
   const setAsideX = setAsideRowsX(snapshotX);
   const calX = calibrateX(snapshotX, model);
+  const pricedPairsX = snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd > 0 && pX.tvl_usd > 0);
   const earlyX = boardX.filter((rX) => !snapshotX.watchlist.includes(rX.slug)).length;
   const radarX: RadarDataX = {
     as_of: snapshotX.as_of,
@@ -863,6 +999,8 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
       median_abs_error: calX.median_abs_error,
       categories: Object.keys(calX.by_category).length,
       out_of_sample: calX.out_of_sample,
+      walk_forward: walkForwardX(pricedPairsX),
+      feature_loo: featureLooX(pricedPairsX, snapshotX.as_of, model, calX),
     },
     watchlist_size: snapshotX.watchlist.length,
     board_size: boardX.length,
