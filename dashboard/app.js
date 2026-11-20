@@ -56,10 +56,19 @@
     if (nX === null || nX === undefined || !isFinite(nX)) return 'n/a';
     return (nX > 0 ? '+' : '') + nX.toFixed(1) + '%';
   }
-  // The P25-P75 band, abridged to the unit so both ends share one cell without wrapping or clipping.
+  // The P25-P75 band, abridged to one shared magnitude and read as bare integers: no currency sign, no
+  // multipliers, no decimals, so both ends sit whole inside the column ("77\u2013310", not "$77.4M\u2013$310M").
+  function bandUnitDivX(hiX) {
+    var aX = Math.abs(hiX);
+    if (aX >= 1e9) return 1e9;
+    if (aX >= 1e6) return 1e6;
+    if (aX >= 1e3) return 1e3;
+    return 1;
+  }
   function fmtBandX(loX, hiX) {
-    if (loX === null || loX === undefined || hiX === null || hiX === undefined) return 'n/a';
-    return fmtShortUsdX(loX) + '\u2013' + fmtShortUsdX(hiX);
+    if (loX === null || loX === undefined || hiX === null || hiX === undefined || !isFinite(loX) || !isFinite(hiX)) return 'n/a';
+    var dX = bandUnitDivX(hiX);
+    return String(Math.round(loX / dX)) + '\u2013' + String(Math.round(hiX / dX));
   }
   // An unabbreviated integer carrying thousands separators and never scientific notation, so the math
   // line can be read exactly as written (1,062,000 instead of 1.06e6 or $1.06M).
@@ -106,21 +115,22 @@
     var wordX = (c.split(/[^a-z0-9]+/).filter(Boolean)[0] || 'other').toUpperCase();
     return wordX.length > 8 ? wordX.slice(0, 8) : wordX;
   }
-  // Standard short tickers for the chains the snapshot lists; anything unlisted falls back to its first word,
-  // uppercased and kept to five characters, so a chain chip is a symbol rather than a clipped sentence.
+  // Standard short exchange codes for the chains the snapshot lists — every code is 2-4 characters so it
+  // renders whole inside the chip box at its own font size; anything unlisted falls back to its first word,
+  // uppercased and kept to four characters, so a chain chip is a symbol rather than a one-letter stub.
   var CHAIN_LABELSX = {
     'ethereum': 'ETH', 'eth': 'ETH', 'binance': 'BNB', 'bnb chain': 'BNB', 'bnb': 'BNB',
     'optimism': 'OP', 'op mainnet': 'OP', 'arbitrum': 'ARB', 'base': 'BASE', 'polygon': 'POL',
-    'solana': 'SOL', 'avalanche': 'AVAX', 'linea': 'LINEA', 'scroll': 'SCROLL', 'blast': 'BLAST',
-    'mantle': 'MANTLE', 'zksync era': 'ZK', 'zksync': 'ZK', 'gnosis': 'GNO', 'celo': 'CELO',
-    'berachain': 'BERA', 'hyperliquid': 'HYPE', 'sonic': 'S', 'unichain': 'UNI'
+    'solana': 'SOL', 'avalanche': 'AVAX', 'linea': 'LINE', 'scroll': 'SCRL', 'blast': 'BLST',
+    'mantle': 'MANT', 'zksync era': 'ZK', 'zksync': 'ZK', 'gnosis': 'GNO', 'celo': 'CELO',
+    'berachain': 'BERA', 'hyperliquid': 'HYPE', 'sonic': 'SON', 'unichain': 'UNI'
   };
   function chainLabelX(cX) {
     var rawX = String(cX === null || cX === undefined ? '' : cX).trim();
     var hitX = CHAIN_LABELSX[rawX.toLowerCase()];
     if (hitX) return hitX;
     var wordX = (rawX.split(/[^A-Za-z0-9]+/).filter(Boolean)[0] || 'CHAIN').toUpperCase();
-    return wordX.length > 5 ? wordX.slice(0, 5) : wordX;
+    return wordX.length > 4 ? wordX.slice(0, 4) : wordX;
   }
 
   // The scoring formula, restated on the page from the snapshot's own numbers. implied = alpha x TVL^elasticity x
@@ -216,12 +226,12 @@
     var pX = DATAX.pre_token_size, liveX = DATAX.live_size, aside = DATAX.set_aside_size;
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
-      kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist', 'every slug on the house list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'elasticity', 'the market pays less per dollar as TVL grows', ''),
-      kpi(FITX.comparables, 'comps fit', 'priced protocols the curve rests on', ''),
-      kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band about the curve (median ×' + FITX.median_abs_error.toFixed(2) + ')', 'accent'),
-      kpi(pX, 'pre-token', DATAX.board_size + ' ranked, ' + aside + ' set aside', ''),
-      kpi(liveX, 'tokens', 'shown apart, never mixed into the ranking', ''),
+      kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'pays less as TVL grows', ''),
+      kpi(FITX.comparables, 'comps fit', 'priced protocols it fits', ''),
+      kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
+      kpi(pX, 'pre-token', aside + ' set aside', ''),
+      kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
       oddsKpi());
   } // c
 
@@ -232,11 +242,11 @@
     var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
     var beatsX = brierX < baseBrierX;
-    return kpi(brierX.toFixed(3), 'odds brier', 'base rate ' + (baseX * 100).toFixed(0) + '% \u2192 \u00d7' + ((baseX / Math.max(1 - baseX, 1e-9)).toFixed(2)) + ' odds; ' + (beatsX ? 'beats the base line ' : 'does not beat the base line ') + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
+    return kpi(brierX.toFixed(3), 'odds brier', 'base ' + (baseX * 100).toFixed(0) + '%, line ' + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
   } // c
   function kpi(value, label, sub, cls) {
-    // The figure leads its caption on one tight line; the caption yields (ellipsis) before the number ever
-    // does, and the footnote takes its own clipped line beneath — so the seven-card strip stays short.
+    // The figure leads its caption; the caption stacks its complete words on up to two lines so a long label
+    // ("WATCHLIST COVERED") never clips, and the footnote takes its own short line beneath — the strip stays short.
     return h('div', { class: 'kpi ' + (cls || '') },
       h('div', { class: 'k-top' }, h('span', { class: 'k-value' }, String(value)), h('span', { class: 'k-label' }, label)),
       h('div', { class: 'k-sub' }, sub));
@@ -302,7 +312,7 @@
         h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
         h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
     });
-    return card('Walk-forward validation', 'the curve, refit on each training side and graded on the fold it never saw',
+    return card('Walk-forward validation', 'graded on the fold it never saw',
       h('div', null,
         h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
         h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
@@ -356,7 +366,7 @@
       h('span', { class: 'dot' }, '● priced protocol'),
       h('span', { class: 'sq' }, '■ ranked pre-token row'),
       h('span', { class: 'ln' }, '— fitted curve'));
-    return card('Price vs size', 'every priced protocol and every ranked row, with the fitted curve',
+    return card('Price vs size', 'priced protocols and ranked rows',
       h('div', { class: 'scatter-wrap' }, sX), legendX);
   }
 
@@ -404,7 +414,7 @@
     var tallyX = verdictCounts();
     var bestX = null;
     DATAX.rows.forEach(function (rX) { if (bestX === null || rX.net_per_hour > bestX.net_per_hour) bestX = rX; });
-    return card('Netted verdicts', 'the model\'s plain reading of each ranked row',
+    return card('Netted verdicts', 'the model\'s read of each row',
       h('div', null,
         h('div', { class: 'verdict-strip' },
           verdictPill('farm', tallyX.farm, 'clears its costs'),
@@ -488,8 +498,10 @@
   }
 
   function th(keyX, label, num) {
-    var arrowX = stateX.sort === keyX ? (stateX.dir < 0 ? ' ▾' : ' ▴') : '';
-    return h('th', { class: 'sortable' + (num ? ' num' : ''), 'aria-sort': stateX.sort === keyX ? (stateX.dir < 0 ? 'descending' : 'ascending') : 'none', onclick: function () { stateX.dir = stateX.sort === keyX ? -stateX.dir : -1; stateX.sort = keyX; paint(); } }, label + arrowX);
+    // The direction glyph is folded into the sticky sort cue instead of the label text, so a complete header
+    // word ("IMPLIED") still fits its narrow column without the active arrow pushing it into an ellipsis.
+    var cueX = stateX.sort === keyX ? (stateX.dir < 0 ? ' ▾' : ' ▴') : '';
+    return h('th', { class: 'sortable' + (num ? ' num' : '') + (cueX ? ' active' : ''), 'data-cue': cueX.trim(), 'aria-sort': stateX.sort === keyX ? (stateX.dir < 0 ? 'descending' : 'ascending') : 'none', onclick: function () { stateX.dir = stateX.sort === keyX ? -stateX.dir : -1; stateX.sort = keyX; paint(); } }, label);
   }
 
   function table(rows) {
@@ -503,7 +515,7 @@
         th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mcap / TVL', true));
     } else {
       headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
-        th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No token for', true),
+        th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
         th('ratio', 'Implied', true), th('value', 'Val', true),
         th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
     }
@@ -520,8 +532,10 @@
       cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name)));
       cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
       var chainsX = rX.chains || [];
-      var shownX = chainsX.slice(0, 2).map(function (cX) { return h('span', { title: cX }, chainLabelX(cX)); });
-      if (chainsX.length > 2) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 2)));
+      // One complete chain chip per row, plus a "+n" chip for the rest: a single code that renders whole
+      // beats two chips that both squeeze down to a one-letter stub behind an ellipsis.
+      var shownX = chainsX.length ? [h('span', { title: chainsX[0] }, chainLabelX(chainsX[0]))] : [];
+      if (chainsX.length > 1) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 1)));
       cellsX.push(h('td', null, h('span', { class: 'chips' }, shownX)));
       cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
       cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPctShort(rX.change_7d)));

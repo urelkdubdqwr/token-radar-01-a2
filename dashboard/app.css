@@ -49,10 +49,10 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .kpi.ok .k-value { color: var(--accent); } /* good value tint */
 .kpi.accent { border-color: #2b5c66; } /* highlight frame */
 .kpi.accent .k-value { color: var(--warn); } /* highlight value tint */
-.kpi .k-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; } /* figure + caption line */
-.kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* card label — yields to its figure */
-.kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; } /* card figure — inline ahead of its caption */
-.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.15; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* card footnote — one clipped line so the strip stays short */
+.kpi .k-top { display: flex; align-items: flex-start; gap: 6px; min-width: 0; } /* figure + caption line — the label may stack two words */
+.kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.05; padding-top: 2px; } /* card label — wraps to complete words ("WATCHLIST" over "COVERED") instead of clipping one long line */
+.kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines */
+.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.15; min-width: 0; white-space: nowrap; overflow: hidden; } /* card footnote — one short complete line so the strip stays short */
 
 /* Controls */
 .controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
@@ -80,20 +80,20 @@ tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /
 .rank { color: var(--dim); font-family: var(--mono); } /* position number */
 .pname { font-weight: 600; color: var(--ink); } /* protocol name */
 .cat { display: inline-block; font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; } /* category tag */
-.chips { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 3px; min-height: 0; overflow: hidden; } /* inline chain tags — at most two chips plus a "+n" chip, all on one line */
-.chips span { display: block; font-size: 12.5px; line-height: 1.2; color: var(--accent-2); background: #0f2138; border: 1px solid #172c46; border-radius: 5px; padding: 1px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; min-width: 0; } /* one inline chain tag */
+.chips { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 3px; min-height: 0; overflow: hidden; } /* inline chain tags — one complete chain chip plus a "+n" chip, all on one line */
+.chips span { display: block; font-size: 12.5px; line-height: 1.2; color: var(--accent-2); background: #0f2138; border: 1px solid #172c46; border-radius: 5px; padding: 1px 6px; white-space: nowrap; flex: 0 0 auto; } /* one complete chain tag — a 2-4 char exchange code never shrinks into a one-letter stub */
 .chips span.more { color: var(--muted); background: transparent; } /* overflow count tag */
 /* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. */
 .board th:nth-child(1), .board td:nth-child(1) { width: 3%; }
 .board th:nth-child(2), .board td:nth-child(2) { width: 15.5%; }
 .board th:nth-child(3), .board td:nth-child(3) { width: 7.5%; }
-.board th:nth-child(4), .board td:nth-child(4) { width: 7.5%; }
+.board th:nth-child(4), .board td:nth-child(4) { width: 7.5%; padding-left: 3px; padding-right: 3px; }
 .board th:nth-child(5), .board td:nth-child(5) { width: 6%; }
 .board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; }
 .board th:nth-child(7), .board td:nth-child(7) { width: 7.5%; }
-.board th:nth-child(8), .board td:nth-child(8) { width: 5.5%; }
+.board th:nth-child(8), .board td:nth-child(8) { width: 5.5%; padding-left: 4px; padding-right: 4px; } /* narrow header column — two px of its own padding traded back so "IMPLIED" and its sort cue fit whole */
 .board th:nth-child(9), .board td:nth-child(9) { width: 7%; }
-.board th:nth-child(10), .board td:nth-child(10) { width: 10%; }
+.board th:nth-child(10), .board td:nth-child(10) { width: 10%; padding-left: 2px; padding-right: 2px; }
 .board th:nth-child(11), .board td:nth-child(11) { width: 4%; }
 .board th:nth-child(12), .board td:nth-child(12) { width: 6.5%; }
 .board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; }
@@ -131,7 +131,7 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .card { border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * 1.125); } /* analytics card */
 .card-head { margin-bottom: calc(var(--u) * .5); } /* card header */
 .card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); } /* card header text */
-.card-sub { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* card subheading — one clipped line */
+.card-sub { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.3; white-space: nowrap; overflow: hidden; } /* card subheading — a short complete line that fits its card whole */
 .card .note { color: var(--muted); font-size: 14px; line-height: 1.35; margin: calc(var(--u) * .5) 0 0; } /* card note */
 
 /* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
@@ -233,7 +233,8 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .disclosure[open] summary::after { content: " ▾"; } /* open caret */
 .disclosure summary:hover { color: var(--ink); } /* label hover */
 
-/* Quiet sort cue on sortable headers; the active column relies on its direction arrow alone. */
-thead th.sortable::before { content: "↕"; color: var(--dim); opacity: .45; margin-right: 5px; font-size: 10px; } /* sort cue */
+/* Quiet sort cue on sortable headers; the active column swaps its cue for the direction glyph in place. */
+thead th.sortable::before { content: "↕"; color: var(--dim); opacity: .45; margin-right: 3px; font-size: 10px; } /* sort cue */
 thead th.sortable:hover::before { opacity: .8; } /* cue brightens */
+thead th.sortable.active::before { content: attr(data-cue); color: var(--accent); opacity: .9; } /* active direction, drawn in the cue slot so the header word keeps its width */
 thead th.num.sortable::before { float: left; } /* numeric column cue */
