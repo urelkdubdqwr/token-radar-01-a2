@@ -63,22 +63,23 @@ select { background: var(--panel); border: 1px solid var(--line); color: var(--i
 
 /* Table */
 .board { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; } /* table frame */
-table { width: 100%; border-collapse: collapse; font-size: 13px; } /* grid base */
-thead th { text-align: left; padding: 11px 12px; background: var(--panel-2); color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); } /* sortable header cell */
+table { width: 100%; border-collapse: collapse; font-size: 11.5px; } /* grid base */
+thead th { text-align: left; padding: 9px 7px; background: var(--panel-2); color: var(--muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); } /* sortable header cell */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 10px 12px; border-bottom: 1px solid #12203a; vertical-align: middle; } /* body cell */
+tbody td { padding: 8px 7px; border-bottom: 1px solid #12203a; vertical-align: middle; } /* body cell */
+tbody td.num { white-space: nowrap; } /* numeric cells stay on one line */
 tbody tr { cursor: pointer; } /* row is interactive */
 tbody tr:hover { background: #0e1a2c; } /* hover wash */
 tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /* selected row */
 .rank { color: var(--dim); font-family: var(--mono); } /* position number */
 .pname { font-weight: 600; color: var(--ink); } /* protocol name */
-.cat { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; white-space: nowrap; } /* category tag */
-.chips span { display: inline-block; font-size: 11px; color: var(--accent-2); background: #0f2138; border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; } /* tag chips */
+.cat { display: inline-block; font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; } /* category tag */
+.chips span { display: inline-block; font-size: 10px; color: var(--accent-2); background: #0f2138; border-radius: 5px; padding: 1px 4px; margin: 1px 2px 1px 0; } /* tag chips */
 .val { color: var(--accent); font-weight: 600; } /* headline value */
 .pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
 .ratio { color: var(--warn); } /* multiple tint */
-.reason { color: var(--muted); font-size: 12px; } /* note text */
+.reason { color: var(--muted); font-size: 11px; } /* note text */
 tbody tr.static { cursor: default; } /* non-clickable row */
 tbody tr.static:hover { background: transparent; } /* no hover for static */
 .empty { padding: 28px; text-align: center; color: var(--dim); } /* no results */
@@ -167,10 +168,10 @@ footer { margin-top: calc(var(--u) * 5); color: var(--dim); font-size: 11.5px; b
 .bstrip-t.mid { background: var(--accent); } /* implied-value tick */
 
 /* Net-of-fees cell: a single tight phrase, kept small so the column stays thin. */
-.netline { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; } /* net line */
+.netline { font-family: var(--mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; } /* net line */
 
 /* Token-odds pill — keyed to the base rate: hot above twice it, cold below half. */
-.odds-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); } /* odds chip */
+.odds-pill { display: inline-block; padding: 1px 5px; border-radius: 999px; font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line); } /* odds chip */
 .odds-hi { color: var(--accent); border-color: #2b5c66; background: #0e2b2a; } /* strong odds */
 .odds-mid { color: var(--muted); } /* around the base rate */
 .odds-lo { color: var(--dim); } /* weak odds */
@@ -184,7 +185,7 @@ footer { margin-top: calc(var(--u) * 5); color: var(--dim); font-size: 11.5px; b
 .verdict-pill.farm { border-color: #2b5c66; } .verdict-pill.farm b, .verdict-pill.farm span { color: var(--accent); } /* farm tint */
 .verdict-pill.marginal { border-color: #5c4a2b; } .verdict-pill.marginal b, .verdict-pill.marginal span { color: var(--warn); } /* marginal tint */
 .verdict-pill.skip { border-color: #3a465c; } .verdict-pill.skip b, .verdict-pill.skip span { color: var(--dim); } /* skip tint */
-.pill { display: inline-block; font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; white-space: nowrap; } /* generic chip */
+.pill { display: inline-block; font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; } /* generic chip */
 .pill.verdict-farm { color: var(--accent); border-color: #2b5c66; } /* farm chip */
 .pill.verdict-marginal { color: var(--warn); border-color: #5c4a2b; } /* marginal chip */
 .pill.verdict-skip { color: var(--dim); } /* skip chip */
