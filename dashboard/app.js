@@ -441,7 +441,10 @@
       cellsX.push(h('td', { class: 'num rank' }, liveX ? '' : String(rX.rank)));
       cellsX.push(h('td', null, h('span', { class: 'pname' }, rX.name)));
       cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, rX.category) : h('span', { class: 'flat' }, '—')));
-      cellsX.push(h('td', null, h('span', { class: 'chips' }, (rX.chains || []).slice(0, 3).map(function (cX) { return h('span', null, cX); }))));
+      var chainsX = rX.chains || [];
+      var shownX = chainsX.slice(0, 3).map(function (cX) { return h('span', null, cX); });
+      if (chainsX.length > 3) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 3)));
+      cellsX.push(h('td', null, h('span', { class: 'chips' }, shownX)));
       cellsX.push(h('td', { class: 'num' }, fmtUsdX(rX.tvl_usd)));
       cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPct(rX.change_7d)));
       if (liveX) {
@@ -455,7 +458,7 @@
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_label || '—'));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
-        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'pill verdict-' + rX.verdict }, rX.verdict)));
+        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict)));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
     });
