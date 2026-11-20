@@ -300,8 +300,8 @@
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
-      kpi(FITX.comparables, 'comps fit', FITX.comparables + ' priced protocols, held out', '', true),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
+      kpi(FITX.comparables, 'comps fit', FITX.comparables + ' priced, held out', '', true),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
       kpi(pX, 'pre-token', aside + ' set aside', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
@@ -413,7 +413,12 @@
     var xsX = ptsX.map(function (pX) { return pX.x; }), ysX = ptsX.map(function (pX) { return pX.y; });
     var x0X = Math.min.apply(null, xsX), x1 = Math.max.apply(null, xsX), y0 = Math.min.apply(null, ysX), y1 = Math.max.apply(null, ysX);
     if (x1 === x0X) x1 = x0X + 1; if (y1 === y0) y1 = y0 + 1;
-    var xpadX = (x1 - x0X) * 0.01, ypadX = (y1 - y0) * 0.01;
+    // The x domain is read straight off the plotted points: take the smallest and largest log10(TVL) actually
+    // drawn, then pad each end by half a decade. The axis is a log10 scale, so that half-decade is a constant
+    // width, not a share of the span: an outlier far out no longer squeezes the dense cloud into a sliver, and
+    // the leftmost/rightmost point keeps a small margin instead of riding the frame. The y domain keeps the old
+    // one-per-cent-of-range padding.
+    var xpadX = 0.5, ypadX = (y1 - y0) * 0.01;
     x0X -= xpadX; x1 += xpadX; y0 -= ypadX; y1 += ypadX;
     var sxX = function (v) { return padL + (v - x0X) / (x1 - x0X) * (WX - padL - padR); };
     var syX = function (v) { return H - padB - (v - y0) / (y1 - y0) * (H - padT - padB); };
