@@ -379,6 +379,7 @@
     if (keyX === 'value') return rX.implied_value_usd === undefined ? rX.mcap_usd || 0 : rX.implied_value_usd;
     if (keyX === 'ratio') return rX.effective_multiple === undefined ? (rX.implied_value_usd && rX.tvl_usd ? rX.implied_value_usd / rX.tvl_usd : 0) : rX.effective_multiple;
     if (keyX === 'band') return rX.band_hi_usd === undefined ? -Infinity : rX.band_hi_usd;
+    if (keyX === 'p25') return rX.band_p75_usd === undefined ? -Infinity : rX.band_p75_usd;
     if (keyX === 'verdict') return rX.net_usd === undefined ? -Infinity : rX.net_usd;
     return rX[keyX] === null || rX[keyX] === undefined ? -Infinity : rX[keyX];
   }
@@ -401,7 +402,7 @@
       headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
         th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No token for', true),
         th('ratio', 'Implied / TVL', true), th('value', 'Implied value', true),
-        th('band', 'Band', true), th('token_odds', 'Token Odds', true), th('net_usd', 'Net of fees', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
+        th('p25', 'P25–P75', true), th('token_odds', 'Token Odds', true), th('net_usd', 'Net of fees', true), th('net_per_hour', 'Net / hr', true), th('verdict', 'Verdict'));
     }
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
@@ -425,7 +426,7 @@
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(3) + '×' : '—'));
         cellsX.push(h('td', { class: 'num val' }, fmtUsdX(rX.implied_value_usd)));
-        cellsX.push(h('td', { class: 'num band' }, rX.band_lo_usd === undefined ? '—' : fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd)));
+        cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtUsdX(rX.band_p25_usd) + ' – ' + fmtUsdX(rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_label || '—'));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtMoney(rX.net_per_hour, 2)));
@@ -471,7 +472,9 @@
         bodyX.appendChild(h('div', { class: 'math', html:
           'band: <b>' + fmtUsdX(rX.band_lo_usd) + ' – ' + fmtUsdX(rX.band_hi_usd) + '</b> (the interquartile residual span around the curve)<br>' +
           'netting: allocation <b>' + fmtMoney(rX.alloc_usd) + '</b> − gas <b>' + fmtMoney(rX.est_gas_usd) + '</b> over <b>' + rX.est_hours + '</b> hands-on hours = net <b>' + fmtMoney(rX.net_usd) + '</b>, at the upper band net <b>' + fmtMoney(rX.net_hi_usd) + '</b>: verdict <b>' + rX.verdict + '</b>.<br>' +
-          'plan net of fees: <b>' + esc(rX.net_label || 'n/a') + '</b> (7 steps × a stated $2.50 of gas and fees each).' }));
+          'plan net of fees: <b>' + esc(rX.net_label || 'n/a') + '</b> (7 steps × a stated $2.50 of gas and fees each).<br>' +
+          'P25–P75: <b>' + fmtUsdX(rX.band_p25_usd) + ' – ' + fmtUsdX(rX.band_p75_usd) + '</b> from a 200-draw bootstrap of the curve’s residuals (seeded, so it repeats).' }));
+        bodyX.appendChild(bandStrip(rX));
       }
       if (rX.token_odds !== undefined) {
         var baseX = (DATAX.token_odds && DATAX.token_odds.base_rate) || 0;
@@ -500,6 +503,19 @@
     drawerX.classList.add('open'); scrim.classList.add('on'); drawerX.setAttribute('aria-hidden', 'false');
   }
   function dt(k, v) { return [h('dt', null, k), h('dd', null, v)]; } // c
+
+  // A thin band strip for the detail view: the P25..P75 span as a filled bar with three ticks at P25, the
+  // implied value and P75, positioned by share of the P75 endpoint.
+  function bandStrip(rX) {
+    if (rX.band_p75_usd === undefined || rX.band_p75_usd <= 0) return null;
+    var hiX = rX.band_p75_usd, loX = rX.band_p25_usd, midX = rX.implied_value_usd;
+    var atX = function (v) { return Math.max(0, Math.min(100, (v / hiX) * 100)).toFixed(1); };
+    return h('div', { class: 'bstrip', title: 'P25 ' + fmtUsdX(loX) + ' / implied ' + fmtUsdX(midX) + ' / P75 ' + fmtUsdX(hiX) },
+      h('div', { class: 'bstrip-fill', style: 'left:' + atX(loX) + '%;width:' + (atX(midX) - atX(loX)) + '%' }),
+      h('i', { class: 'bstrip-t', style: 'left:' + atX(loX) + '%' }),
+      h('i', { class: 'bstrip-t mid', style: 'left:' + atX(midX) + '%' }),
+      h('i', { class: 'bstrip-t', style: 'left:' + atX(hiX) + '%' }));
+  } // c
 
   /** At most six same-category peers pulled from the data's category-peers map, or null if the category is missing. */
   function categoryPeersOf(rX) {

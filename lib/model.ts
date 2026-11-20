@@ -607,6 +607,8 @@ export interface BoardRowX {
   };
   band_lo_usd: number;
   band_hi_usd: number;
+  band_p25_usd: number;
+  band_p75_usd: number;
   position_usd: number;
   est_gas_usd: number;
   est_hours: number;
@@ -658,6 +660,8 @@ export interface RadarRowX {
   maturity_multiplier: number;
   band_lo_usd: number;
   band_hi_usd: number;
+  band_p25_usd: number;
+  band_p75_usd: number;
   position_usd: number;
   est_gas_usd: number;
   est_hours: number;
@@ -834,6 +838,7 @@ export function buildBoardX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
 
   const calX = calibrateX(snapshotX, model);
   const oddsFitX = fitTokenOddsX(snapshotX, model);
+  const bootX = bootstrapBandX(snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd > 0 && pX.tvl_usd > 0), calX);
   const scoredX = [...chosenX.values()].map((p) => ({ p, r: impliedValueX(p, snapshotX.as_of, model, calX) }));
   scoredX.sort((aX, bX) => bX.r.implied - aX.r.implied || (aX.p.slug < bX.p.slug ? -1 : aX.p.slug > bX.p.slug ? 1 : 0));
   return scoredX.map(({ p: pX, r: rX }, i) => {
@@ -870,6 +875,8 @@ export function buildBoardX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
     },
     band_lo_usd: econX.band_lo_usd,
     band_hi_usd: econX.band_hi_usd,
+    band_p25_usd: Math.max(1, Math.round(rX.implied * bootX.lo)),
+    band_p75_usd: Math.max(1, Math.round(rX.implied * bootX.hi)),
     position_usd: econX.position_usd,
     est_gas_usd: econX.est_gas_usd,
     est_hours: econX.est_hours,
@@ -1097,6 +1104,44 @@ export function categoryPeersX(snapshotX: SnapshotX): Record<string, { name: str
 }
 
 /**
+ * A tiny deterministic PRNG (mulberry32): seeded once, it yields the same stream every run, so the
+ * bootstrap below is reproducible. No clock and no Math.random reach the model.
+ */
+function prngX(seed: number): () => number {
+  let aX = seed >>> 0;
+  return () => {
+    aX = (aX + 0x6d2b79f5) >>> 0;
+    let tX = aX;
+    tX = Math.imul(tX ^ (tX >>> 15), tX | 1);
+    tX ^= tX + Math.imul(tX ^ (tX >>> 7), tX | 61);
+    return ((tX ^ (tX >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The P25\u2013P75 span of a protocol's implied value, from a 200-draw bootstrap of the comps curve's own
+ * log-residuals. Each draw resamples the residuals with replacement, adds one to every prediction, and the
+ * 25th/75th percentiles of those draws become the band multipliers. Seeded (`BOOTSTRAP_SEEDX`) so the band is
+ * identical run to run, and drawn only from the snapshot's priced protocols.
+ */
+export const BOOTSTRAP_SEEDX = 0x5eed1234;
+export function bootstrapBandX(pairs: SnapshotProtocolX[], calX: CalibrationX): { lo: number; hi: number } {
+  if (pairs.length === 0) return { lo: calX.err_lo, hi: calX.err_hi };
+  const residualX = pairs.map((pX) => Math.log(pX.mcap_usd as number) - Math.log(baseValueX(pX.tvl_usd, 1, calX)));
+  const randX = prngX(BOOTSTRAP_SEEDX);
+  const drawsX = 200;
+  const mediansX: number[] = [];
+  for (let d = 0; d < drawsX; d++) {
+    let sumX = 0;
+    for (let i = 0; i < residualX.length; i++) sumX += residualX[Math.floor(randX() * residualX.length)]!;
+    mediansX.push(sumX / residualX.length);
+  }
+  mediansX.sort((aX, bX) => aX - bX);
+  const atX = (t: number): number => mediansX[Math.min(mediansX.length - 1, Math.max(0, Math.round(t * (mediansX.length - 1))))]!;
+  return { lo: Math.exp(atX(0.25)), hi: Math.exp(atX(0.75)) };
+}
+
+/**
  * The snapshot's whole set split into five disjoint lifecycle buckets, each classified in one pass so the
  * counts sum to the protocol total: a row with a market cap trades already; a row carrying a symbol or a
  * CoinGecko id but no cap is recorded, not yet priced; a cap-less row on the watchlist is queued; one the
@@ -1146,6 +1191,8 @@ export function radarRowX(row: BoardRowX): RadarRowX {
     maturity_multiplier: row.model_full.maturity_multiplier,
     band_lo_usd: row.band_lo_usd,
     band_hi_usd: row.band_hi_usd,
+    band_p25_usd: row.band_p25_usd,
+    band_p75_usd: row.band_p75_usd,
     position_usd: row.position_usd,
     est_gas_usd: row.est_gas_usd,
     est_hours: row.est_hours,
