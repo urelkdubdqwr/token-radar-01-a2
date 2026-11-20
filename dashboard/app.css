@@ -55,6 +55,9 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.05; padding-top: 2px; } /* card label — wraps only between whole words ("WATCHLIST" over "COVERED"), never splitting one ("COVER/ED") */
 .kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.3; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; max-width: 100%; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines, its taller line-box keeps the glyphs off the card's top edge */
 .kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.25; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card footnote — a short line that wraps at word breaks rather than cutting a word in half */
+.kpi.hero .k-value { font-size: 32px; } /* hero figure — a third larger than the strip's 24px, the row still shares one height */
+.kpi.hero .k-sub { font-size: 12.5px; } /* hero footnote — the held-out sentence, a touch smaller so it holds to two lines */
+.kpi.hero { padding-top: calc(var(--u) * .875); } /* a hair more top padding so the enlarged figure never clips at the card's top edge */
 
 /* Controls */
 .controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
@@ -191,6 +194,15 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .cal-cell b { display: block; font-family: var(--mono); font-size: 18px; color: var(--accent); line-height: 1.15; } /* tier percent */
 .cal-cell span { font-size: 11.5px; color: var(--muted); display: block; } /* tier name */
 .cal-cell em { font-size: 11px; color: var(--dim); font-style: normal; } /* tier n */
+
+/* Methodology strip inside the out-of-sample panel: one formula line, then a row of factor step chips. */
+.methodline { margin-top: calc(var(--u) * .625); border-top: 1px solid var(--line); padding-top: calc(var(--u) * .625); } /* separated from the held-out numbers above */
+.methodline-h { font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin-bottom: 2px; } /* strip title */
+.methodline-p { font-size: 12.5px; color: var(--muted); line-height: 1.25; margin-bottom: 5px; } /* one-line formula in words */
+.stepchips { display: flex; flex-wrap: wrap; gap: 5px; } /* factor chips */
+.stepchip { display: inline-flex; align-items: baseline; gap: 4px; border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 2px 6px; font-size: 12px; line-height: 1.1; } /* one step chip */
+.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; } /* factor name */
+.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 11.5px; } /* fitted value */
 
 /* Detail-view band strip: a thin track with a filled P25..P75 span and three tick marks. */
 .bstrip { position: relative; height: 16px; margin: 8px 0 2px; background: #0a1526; border: 1px solid var(--line); border-radius: 4px; } /* track */

@@ -278,8 +278,8 @@
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'pays less as TVL grows', ''),
-      kpi(FITX.comparables, 'comps fit', 'priced protocols it fits', ''),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
+      kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
       kpi(pX, 'pre-token', aside + ' set aside', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
@@ -293,12 +293,14 @@
     var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
     var beatsX = brierX < baseBrierX;
-    return kpi(brierX.toFixed(3), 'odds brier', 'base ' + (baseX * 100).toFixed(0) + '%, line ' + baseBrierX.toFixed(3), beatsX ? 'ok' : 'accent');
+    return kpi(brierX.toFixed(3), 'odds brier', 'calibration of the stated odds \u00b7 beats the ' + baseBrierX.toFixed(3) + ' base-rate line, held out', beatsX ? 'ok' : 'accent', true);
   } // c
-  function kpi(value, label, sub, cls) {
+  function kpi(value, label, sub, cls, hero) {
     // The figure leads its caption; the caption stacks its complete words on up to two lines so a long label
     // ("WATCHLIST COVERED") never clips, and the footnote takes its own short line beneath — the strip stays short.
-    return h('div', { class: 'kpi ' + (cls || '') },
+    // A hero card (size elasticity, comps fit, odds Brier) sets its figure a third larger and keeps a held-out
+    // sentence under it; the grid stretches every card to the row's tallest, so nothing misaligns.
+    return h('div', { class: 'kpi ' + (cls || '') + (hero ? ' hero' : '') },
       h('div', { class: 'k-top' }, h('span', { class: 'k-value' }, String(value)), h('span', { class: 'k-label' }, label)),
       h('div', { class: 'k-sub' }, sub));
   } // c
@@ -397,8 +399,17 @@
     // axes
     sX.appendChild(svg('line', { x1: padL, y1: H - padB, x2: WX - padR, y2: H - padB, stroke: '#2a3f5c', 'stroke-width': 1 }));
     sX.appendChild(svg('line', { x1: padL, y1: padT, x2: padL, y2: H - padB, stroke: '#2a3f5c', 'stroke-width': 1 }));
-    // fitted curve: log10(mcap) = log10(alpha) + elasticity * log10(tvl)
+    // fitted curve: log10(mcap) = log10(alpha) + elasticity * log10(tvl). The band the fit leaves behind is
+    // the interquartile envelope already computed (err_lo..err_hi), so it rides the curve as a translucent
+    // ribbon and fills the empty upper-left with the fit's own spread instead of dead space.
     var laX = Math.log(FITX.alpha) / Math.LN10;
+    var loFacX = Math.log(FITX.err_lo || 1) / Math.LN10, hiFacX = Math.log(FITX.err_hi || 1) / Math.LN10;
+    var yLoX = function (v) { return laX + FITX.elasticity * v + loFacX; };
+    var yHiX = function (v) { return laX + FITX.elasticity * v + hiFacX; };
+    var bandX = svg('path', { d: 'M ' + sxX(x0X).toFixed(1) + ' ' + syX(yLoX(x0X)).toFixed(1) + ' L ' + sxX(x1).toFixed(1) + ' ' + syX(yLoX(x1)).toFixed(1)
+      + ' L ' + sxX(x1).toFixed(1) + ' ' + syX(yHiX(x1)).toFixed(1) + ' L ' + sxX(x0X).toFixed(1) + ' ' + syX(yHiX(x0X)).toFixed(1) + ' Z',
+      fill: '#6ea8ff', 'fill-opacity': 0.13, stroke: 'none' });
+    sX.appendChild(bandX);
     var curve = svg('path', { d: 'M ' + sxX(x0X).toFixed(1) + ' ' + syX(laX + FITX.elasticity * x0X).toFixed(1) + ' L ' + sxX(x1).toFixed(1) + ' ' + syX(laX + FITX.elasticity * x1).toFixed(1), stroke: '#6ea8ff', 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' });
     sX.appendChild(curve);
     ptsX.forEach(function (pX) {
@@ -406,17 +417,18 @@
       else sX.appendChild(svg('rect', { x: (sxX(pX.x) - 3).toFixed(1), y: (syX(pX.y) - 3).toFixed(1), width: 6, height: 6, fill: '#38e0c8' }));
     });
     // annotate the two axes
-    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle' }, 'TVL (log₁₀ dollars)'));
-    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log₁₀ dollars)');
+    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle' }, 'TVL (log\u2081\u2080 dollars)'));
+    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log\u2081\u2080 dollars)');
     sX.appendChild(ylX);
-    // The cloud sits low-left, so the fitted curve is named in the clear upper-right corner the points leave open.
-    var txX = WX - padR - 12, tyX = padT + 18;
-    sX.appendChild(svg('text', { x: txX, y: tyX, fill: '#6ea8ff', 'font-size': 12, 'text-anchor': 'end', 'font-weight': 700 }, 'fitted curve \u2014 \u00d7' + (FITX.alpha||0).toPrecision(2) + ' \u00b7 TVL^' + FITX.elasticity.toFixed(2)));
-    sX.appendChild(svg('text', { x: txX, y: tyX + 17, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'end' }, 'log\u2081\u2080 value = ' + laX.toFixed(2) + ' + ' + FITX.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL'));
+    // The pooled cloud sits low and to the right of the fit, so the upper-left band region is clear: the curve
+    // is named there, riding just above the ribbon where no point and no other label can be touched.
+    var txX = padL + 14, tyX = padT + 16;
+    sX.appendChild(svg('text', { x: txX, y: tyX, fill: '#6ea8ff', 'font-size': 12, 'text-anchor': 'start', 'font-weight': 700 }, 'size curve \u2014 ' + FITX.comparables + ' comps'));
+    sX.appendChild(svg('text', { x: txX, y: tyX + 16, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'start' }, 'log\u2081\u2080 value = ' + laX.toFixed(2) + ' + ' + FITX.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL \u00b7 band \u00d7' + FITX.err_lo.toFixed(2) + '\u2013\u00d7' + FITX.err_hi.toFixed(2)));
     var legendX = h('div', { class: 'legend' },
-      h('span', { class: 'dot' }, '● priced protocol'),
-      h('span', { class: 'sq' }, '■ ranked pre-token row'),
-      h('span', { class: 'ln' }, '— fitted curve'));
+      h('span', { class: 'dot' }, '\u25cf priced protocol'),
+      h('span', { class: 'sq' }, '\u25a0 ranked pre-token row'),
+      h('span', { class: 'ln' }, '\u2014 fitted curve \u00b7 shaded \u00d7' + FITX.err_lo.toFixed(2) + '\u2013\u00d7' + FITX.err_hi.toFixed(2)));
     return card('Price vs size', 'priced protocols and ranked rows',
       h('div', { class: 'scatter-wrap' }, sX), legendX);
   }
@@ -434,6 +446,7 @@
         oosItem('time-split miss', '×' + (oX.split_miss || 0).toFixed(2), oX.split_tested + ' newer held out'),
         oosItem('split baseline', '×' + (oX.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
       calStrip(),
+      methodStripX(),
       h('p', { class: 'note' }, beatsX
         ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
         : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
@@ -450,6 +463,28 @@
       })));
   }
   function oosItem(label, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
+
+  // A compact methodology strip carried inside the out-of-sample panel: one sentence for the whole formula,
+  // then one step chip per factor. Every figure a chip prints is read straight off the constants the model
+  // itself runs on (FITX for the fitted curve, MODELX for the growth and maturity weighting), never retyped.
+  function methodStripX() {
+    var aX = FITX.alpha || 0, eX = FITX.elasticity || 0;
+    var growthWeightX = MODELX.growth_weight, growthLoX = MODELX.growth_floor, growthHiX = MODELX.growth_cap;
+    var matLoX = MODELX.maturity_floor, matHiX = MODELX.maturity_floor + MODELX.maturity_range, matYearsX = (MODELX.maturity_days / 365);
+    var shrinkX = MODELX.category_shrink;
+    var stepsX = [
+      { k: 'size', v: 'widths \u00d7' + aX.toPrecision(3) + ' \u00b7 TVL^' + eX.toFixed(2) },
+      { k: 'sector', v: 'per-category median \u00f7' + shrinkX + ' to 1' },
+      { k: 'momentum', v: growthLoX + '%..' + growthHiX + '% \u00d7 ' + growthWeightX.toFixed(2) },
+      { k: 'age', v: matLoX.toFixed(1) + '\u2192' + matHiX.toFixed(1) + ' over ' + matYearsX.toFixed(0) + 'y' }
+    ];
+    return h('div', { class: 'methodline' },
+      h('div', { class: 'methodline-h' }, 'How a launch is priced'),
+      h('div', { class: 'methodline-p' }, 'implied value = fitted size curve on TVL, times sector, times momentum, times age (fitted on the ' + FITX.comparables + ' comparables).'),
+      h('div', { class: 'stepchips' }, stepsX.map(function (sX) {
+        return h('span', { class: 'stepchip' }, h('b', null, sX.k), h('i', null, sX.v));
+      })));
+  } // c
 
   // One verdict taxonomy shared by the netted-verdicts badges and the board's verdict chips: a row's verdict
   // is its own `verdict` field, counted over the ranked board only, so a badge's number always equals the
@@ -476,9 +511,12 @@
   }
   function verdictPill(kind, nX, sub) { return h('div', { class: 'verdict-pill ' + kind }, h('b', null, String(nX)), h('span', null, kind), h('em', null, sub)); }
 
-  function card(title, sub, bodyX) {
+  function card(title, sub) {
+    // A card carries its head plus every body it is handed: the scatter's plot and legend, the out-of-sample
+    // numbers, the calibration strip, the pricing-methodology strip and the note, the walk-forward table and
+    // its leave-one-out — each passed as its own argument and each appended in order rather than dropped.
     var kidsX = [h('div', { class: 'card-head' }, h('h3', null, title), h('div', { class: 'card-sub' }, sub))];
-    if (bodyX) kidsX.push(bodyX);
+    for (var i = 2; i < arguments.length; i++) if (arguments[i]) kidsX.push(arguments[i]);
     return h('div', { class: 'card' }, kidsX);
   }
 
@@ -555,9 +593,24 @@
     return h('th', { class: 'sortable' + (num ? ' num' : '') + (cueX ? ' active' : ''), 'data-cue': cueX.trim(), 'aria-sort': stateX.sort === keyX ? (stateX.dir < 0 ? 'descending' : 'ascending') : 'none', onclick: function () { stateX.dir = stateX.sort === keyX ? -stateX.dir : -1; stateX.sort = keyX; paint(); } }, label);
   }
 
+  // The implied-value cell: the figure reads first, with a thin magnitude bar painted behind it in the accent
+  // colour at low opacity. The bar is a background layer sized to the value's share of the on-screen maximum, so
+  // it never shifts the text, never changes the column width and never grows the row.
+  function valCellX(rX, maxValX) {
+    var vX = rX.implied_value_usd;
+    if (!isFinite(vX) || vX <= 0 || !maxValX) return h('td', { class: 'num val' }, fmtShortUsdX(vX));
+    var wX = Math.max(0, Math.min(100, (vX / maxValX) * 100));
+    var bgX = 'linear-gradient(90deg,rgba(56,224,200,.20) 0 ' + wX.toFixed(1) + '%,transparent ' + wX.toFixed(1) + '% 100%)';
+    return h('td', { class: 'num val bar', style: 'background-image:' + bgX + ';background-repeat:no-repeat;background-position:left center;background-size:100% 7px;' }, fmtShortUsdX(vX));
+  } // c
+
   function table(rows) {
     if (!rows.length) return h('div', { class: 'board' }, h('div', { class: 'empty' }, 'No protocol matches these filters.'));
     var liveX = stateX.tab === 'live', aside = stateX.tab === 'aside';
+    // The magnitude bars in the implied-value column are scaled to the largest implied value on screen, so the
+    // widest bar always belongs to the top row regardless of how the board is filtered or sorted.
+    var maxValX = 0;
+    if (!liveX && !aside) rows.forEach(function (rX) { if (isFinite(rX.implied_value_usd) && rX.implied_value_usd > maxValX) maxValX = rX.implied_value_usd; });
     var headX;
     if (aside) {
       headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), th('tvl_usd', 'TVL', true));
@@ -598,7 +651,7 @@
       } else {
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(1) + '×' : '—'));
-        cellsX.push(h('td', { class: 'num val' }, fmtShortUsdX(rX.implied_value_usd)));
+        cellsX.push(valCellX(rX, maxValX));
         cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtNetX(rX.net_usd)));
