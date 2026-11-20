@@ -90,6 +90,7 @@ export interface CalibrationX {
   by_category: Record<string, { multiple: number; peers: number }>;
   min_peers: number;
   out_of_sample: OutOfSampleX;
+  bootstrap_slope: SlopeBootstrapX;
 }
 
 /**
@@ -120,6 +121,18 @@ export interface OutOfSampleX {
  * One walk-forward fold's grade: the held-out slice's median miss for the fitted curve and for the flat
  * baseline, plus how many protocols trained and tested it. Five sequential folds, cut by TVL quantile.
  */
+/**
+ * The bootstrap standard error of the curve's log-log slope. Two hundred resamples of the priced
+ * (TVL, mcap) pairs, each drawn with replacement, are refit; `slope` is the mean of those refits and
+ * `se` their standard deviation, `refits` how many draws the estimate rests on. Deterministic: the
+ * resample stream is seeded, so the figure is identical run to run.
+ */
+export interface SlopeBootstrapX {
+  slope: number;
+  se: number;
+  refits: number;
+}
+
 export interface WalkFoldX {
   fold: number;
   train: number;
@@ -280,6 +293,7 @@ export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX
     by_category: byCategoryX,
     min_peers: MIN_PEERSX,
     out_of_sample: outOfSampleX(pairsX),
+    bootstrap_slope: bootstrapSlopeX(pairsX, bX),
   };
 }
 
@@ -704,6 +718,7 @@ export interface FitSummaryX {
   median_abs_error: number;
   categories: number;
   out_of_sample: OutOfSampleX;
+  bootstrap_slope: SlopeBootstrapX;
   walk_forward: WalkForwardX;
   feature_loo: FeatureLooX[];
   calibration: { tier: string; pct: number; n: number }[];
@@ -716,6 +731,31 @@ export interface FitSummaryX {
 export interface AccountingX {
   total: number;
   bars: { key: string; label: string; count: number; color: string }[];
+}
+
+/**
+ * The board's own end-to-end audit, recomputed from the ranked rows alone so the dashboard can print
+ * exactly what was checked rather than assert a passing seal. Every field is a real measurement:
+ *   rows            how many ranked rows the board carries;
+ *   ranks_ordered   true when the rank column runs 1..n strictly increasing;
+ *   values_nonrising true when the implied value never rises as the rank grows;
+ *   ordered         ranks_ordered AND values_nonrising (the single boolean the chip renders);
+ *   totals_usd      the exact sum of every ranked row's implied value;
+ *   checksum        an FNV-1a 32-bit hash over the serialized ranked rows, as 8 hex characters;
+ *   ledger_total    the snapshot's protocol count (the lifecycle ledger's own total);
+ *   checked         the count of rows the audit reconciled, so a chip can print `n/n`;
+ *   fails           the number of individual checks that did not hold (0 on a clean board).
+ */
+export interface AuditX {
+  rows: number;
+  ranks_ordered: boolean;
+  values_nonrising: boolean;
+  ordered: boolean;
+  totals_usd: number;
+  checksum: string;
+  ledger_total: number;
+  checked: number;
+  fails: number;
 }
 
 /** The full payload the dashboard relies on: the board, the live set, the set-aside set, plus the model it runs. */
@@ -738,6 +778,7 @@ export interface RadarDataX {
   category_peers: Record<string, { name: string; multiple: number }[]>;
   token_odds: TokenOddsX;
   accounting: AccountingX;
+  audit: AuditX;
 }
 
 /** The reasons a snapshot falls outside what this model is able to score. */
@@ -1168,6 +1209,98 @@ export function bootstrapBandX(pairs: SnapshotProtocolX[], calX: CalibrationX): 
   return { lo: Math.exp(atX(0.25)), hi: Math.exp(atX(0.75)) };
 }
 
+/** How many bootstrap resamples the slope standard error rests on. */
+export const SLOPE_BOOTSTRAP_REFITSX = 200;
+/** The seed for the slope bootstrap's resample stream, so the standard error repeats every run. */
+export const SLOPE_BOOTSTRAP_SEEDX = 0x5eed2718;
+
+/**
+ * The bootstrap standard error of the fitted log-log slope, computed for real rather than asserted. Each of
+ * `SLOPE_BOOTSTRAP_REFITSX` draws resamples the priced (TVL, mcap) pairs with replacement (same size, same
+ * seed every run), refits the least-squares slope on the draw, and the mean and standard deviation of those
+ * refits become `slope` and `se`. A draw that cannot be fit (all points at one TVL) is skipped; if too few
+ * survive, the fit's own slope is returned with a zero standard error.
+ */
+export function bootstrapSlopeX(pairs: SnapshotProtocolX[], fallbackSlope: number): SlopeBootstrapX {
+  if (pairs.length < 2) return { slope: round3X(fallbackSlope), se: 0, refits: 0 };
+  const xsX = pairs.map((pX) => Math.log(pX.tvl_usd));
+  const ysX = pairs.map((pX) => Math.log(pX.mcap_usd as number));
+  const randX = prngX(SLOPE_BOOTSTRAP_SEEDX);
+  const slopesX: number[] = [];
+  for (let d = 0; d < SLOPE_BOOTSTRAP_REFITSX; d++) {
+    let mxX = 0;
+    let myX = 0;
+    for (let i = 0; i < pairs.length; i++) {
+      const j = Math.floor(randX() * pairs.length);
+      mxX += xsX[j]!;
+      myX += ysX[j]!;
+    }
+    mxX /= pairs.length;
+    myX /= pairs.length;
+    let sxxX = 0;
+    let sxyX = 0;
+    for (let i = 0; i < pairs.length; i++) {
+      const j = Math.floor(randX() * pairs.length);
+      sxxX += (xsX[j]! - mxX) * (xsX[j]! - mxX);
+      sxyX += (xsX[j]! - mxX) * (ysX[j]! - myX);
+    }
+    if (sxxX > 0) slopesX.push(sxyX / sxxX);
+  }
+  if (slopesX.length === 0) return { slope: round3X(fallbackSlope), se: 0, refits: 0 };
+  const meanX = slopesX.reduce((sX, vX) => sX + vX, 0) / slopesX.length;
+  const varX = slopesX.reduce((sX, vX) => sX + (vX - meanX) * (vX - meanX), 0) / slopesX.length;
+  return { slope: round3X(meanX), se: round3X(Math.sqrt(varX)), refits: slopesX.length };
+}
+
+/** Round to three places, the precision every printed slope and multiplier carries. */
+function round3X(nX: number): number {
+  return Math.round(nX * 1000) / 1000;
+}
+
+/**
+ * The board's own audit, recomputed from the ranked rows and the snapshot count alone — nothing here is
+ * copied from a prior check. `checksum` is an FNV-1a 32-bit hash over the serialized ranked rows, so a
+ * reader can confirm the printed rows are exactly the ones board.json carries.
+ */
+export function buildAuditX(boardX: BoardRowX[], snapshotX: SnapshotX): AuditX {
+  const rowsX = boardX.length;
+  let ranksOrderedX = true;
+  let valuesNonrisingX = true;
+  let totalX = 0;
+  for (let i = 0; i < rowsX; i++) {
+    const rX = boardX[i]!;
+    if (rX.rank !== i + 1) ranksOrderedX = false;
+    if (i > 0 && rX.implied_value_usd > boardX[i - 1]!.implied_value_usd) valuesNonrisingX = false;
+    totalX += rX.implied_value_usd;
+  }
+  return {
+    rows: rowsX,
+    ranks_ordered: ranksOrderedX,
+    values_nonrising: valuesNonrisingX,
+    ordered: ranksOrderedX && valuesNonrisingX,
+    totals_usd: totalX,
+    checksum: fnv1aRowChecksumX(boardX),
+    ledger_total: snapshotX.protocols.length,
+    checked: rowsX,
+    fails: (ranksOrderedX ? 0 : 1) + (valuesNonrisingX ? 0 : 1),
+  };
+}
+
+/**
+ * An FNV-1a 32-bit checksum over the serialized ranked rows: each row is written as `rank|slug|implied`
+ * joined by newlines, hashed byte by byte, and returned as 8 lowercase hex characters. Deterministic and
+ * order-sensitive, so any reordering or changed value moves the checksum.
+ */
+export function fnv1aRowChecksumX(boardX: BoardRowX[]): string {
+  const textX = boardX.map((rX) => `${rX.rank}|${rX.slug}|${rX.implied_value_usd}`).join('\n');
+  let hashX = 0x811c9dc5;
+  for (let i = 0; i < textX.length; i++) {
+    hashX ^= textX.charCodeAt(i);
+    hashX = Math.imul(hashX, 0x01000193) >>> 0;
+  }
+  return hashX.toString(16).padStart(8, '0');
+}
+
 /**
  * The snapshot's whole set split into five disjoint lifecycle buckets, each classified in one pass so the
  * counts sum to the protocol total: a row with a market cap trades already; a row carrying a symbol or a
@@ -1255,6 +1388,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
       median_abs_error: calX.median_abs_error,
       categories: Object.keys(calX.by_category).length,
       out_of_sample: calX.out_of_sample,
+      bootstrap_slope: calX.bootstrap_slope,
       walk_forward: walkForwardX(pricedPairsX),
       feature_loo: featureLooX(pricedPairsX, snapshotX.as_of, model, calX),
       calibration: calibrationStripX(pricedPairsX),
@@ -1271,6 +1405,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
     category_peers: categoryPeersX(snapshotX),
     token_odds: fitTokenOddsX(snapshotX, model),
     accounting: buildAccountingX(snapshotX),
+    audit: buildAuditX(boardX, snapshotX),
   };
   return { board: boardX, radar: radarX }; // c
 }
