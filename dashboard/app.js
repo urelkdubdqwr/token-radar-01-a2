@@ -310,7 +310,7 @@
         h('summary', null, 'Method note — how a launch is priced'),
       h('p', { html: 'Every protocol that records no token (no symbol, no market cap, no CoinGecko id) that is not a wrapped or staked product of one that trades is ranked by an implied launch value that follows only from the snapshot\'s own figures, through the market\'s own size curve: <code>implied = ' + esc(aX) + ' &times; TVL<sup>' + FITX.elasticity.toFixed(3) + '</sup> &times; category &times; growth &times; maturity</code>.' }),
       h('p', { html: 'That curve is fitted by least squares on <code>log(mcap)</code> against <code>log(tvl)</code> over the <b>' + FITX.comparables + '</b> protocols this snapshot already prices. The <b>elasticity</b> is ' + FITX.elasticity.toFixed(3) + ': the market pays <i>less</i> per dollar as TVL grows, so a $3B protocol is not simply a $50M one times sixty. Half the priced protocols land within <b>×' + FITX.err_lo.toFixed(2) + ' to ×' + FITX.err_hi.toFixed(2) + '</b> of the curve (median error ×' + FITX.median_abs_error.toFixed(2) + '). The <b>category</b> factor is a category\'s median residual shrunk toward 1 (' + FITX.categories + ' categories carry enough peers); <b>growth</b> is the seven-day TVL change clamped to ' + growthLoX + '%..' + growthHi + '% and weighted ' + weight + '; <b>maturity</b> rises from 0.6 to 1.0 over ' + (MODELX.maturity_days / 365).toFixed(0) + ' years with no token. No name is ever special-cased.' }),
-      h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Token on record</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Set aside</b>, never mixed into the ranking.' }));
+      h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Tokens</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Aside</b>, never mixed into the ranking.' }));
   } // c
 
   // ---------------------------------------------------------------- analytics band
@@ -499,7 +499,7 @@
     chainSelX.value = stateX.chain;
     var searchX = h('input', { type: 'search', placeholder: 'Search name or chain…', value: stateX.q, oninput: function (e) { stateX.q = e.target.value; paint(); } });
     var tabsX = h('div', { class: 'tabs', role: 'tablist' },
-      tabBtn('board', 'Pre-token board'), tabBtn('live', 'Token on record'), tabBtn('aside', 'Set aside'));
+      tabBtn('board', 'Board'), tabBtn('live', 'Tokens'), tabBtn('aside', 'Aside'));
     var kidsX = [tabsX, searchX, catSelX, chainSelX];
     if (stateX.tab === 'board') kidsX.push(verdictChips());
     kidsX.push(h('div', { class: 'count' }));
@@ -565,7 +565,7 @@
       headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'), th('tvl_usd', 'TVL', true),
         th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mcap / TVL', true));
     } else {
-      headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'),
+      headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
         th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
         th('ratio', 'Implied', true), th('value', 'Val', true),
         th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));

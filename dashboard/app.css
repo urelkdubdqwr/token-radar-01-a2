@@ -46,15 +46,15 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .method .pill { display: inline-block; font-family: var(--mono); color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 13px; margin-left: 4px; } /* tag chip */
 
 /* KPI cards — headline numbers, including the curve's own quality figures. */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: calc(var(--u) * .75); margin: calc(var(--u) * .75) 0; } /* tight metric strip */
-.kpi { border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * .625) calc(var(--u) * 1.125); display: flex; flex-direction: column; gap: 1px; min-width: 0; } /* single card — figure leads its caption on one line */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: calc(var(--u) * .75); margin: calc(var(--u) * .75) 0 calc(var(--u) * .25); } /* tight metric strip — the slightly taller cards give back their few extra px of bottom margin so the board below sits no lower in the frame */
+.kpi { border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * .75) calc(var(--u) * 1.125); display: flex; flex-direction: column; gap: 1px; min-width: 0; } /* single card — a hair more top/bottom padding so a tall figure never clips at the card's top edge */
 .kpi.ok .k-value { color: var(--accent); } /* good value tint */
 .kpi.accent { border-color: #2b5c66; } /* highlight frame */
 .kpi.accent .k-value { color: var(--warn); } /* highlight value tint */
-.kpi .k-top { display: flex; align-items: flex-start; gap: 6px; min-width: 0; } /* figure + caption line — the label may stack two words */
+.kpi .k-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; min-width: 0; } /* figure + caption — when a wide figure and its caption cannot share the line, the caption wraps to its own full-width line instead of overlapping the next card */
 .kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.05; padding-top: 2px; } /* card label — wraps only between whole words ("WATCHLIST" over "COVERED"), never splitting one ("COVER/ED") */
-.kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines */
-.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.15; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card footnote — a short line that wraps at word breaks rather than cutting a word in half */
+.kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.3; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; max-width: 100%; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines, its taller line-box keeps the glyphs off the card's top edge */
+.kpi .k-sub { font-size: 13.5px; color: var(--muted); line-height: 1.25; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card footnote — a short line that wraps at word breaks rather than cutting a word in half */
 
 /* Controls */
 .controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
