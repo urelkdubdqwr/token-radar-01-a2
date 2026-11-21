@@ -176,15 +176,18 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .oos-big em { font-size: 10px; font-style: normal; color: var(--muted); line-height: 1.15; margin-top: 1px; white-space: normal; overflow-wrap: normal; word-break: normal; } /* flat baseline / held-out sub-line — a tiny muted line under the label, wrapping between whole words so the baseline and held-out count never clip */
 
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
-.walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
-.walk th { text-align: right; padding: 2px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head */
+.card > .walk-body { flex: 0 0 auto; display: flex; flex-direction: column; gap: calc(var(--u) * .25); min-height: 0; overflow: visible; } /* fold table, leave-one-out list and pooled miss ride one normal-flow column — no absolute positioning, no negative margins, no clipped fixed heights; the later, more specific selector beats the generic card-body grow rule so the column keeps its natural height */
+.walk-body .note { font-size: 11px; line-height: 1.22; margin: 0; } /* pooled-miss line — its own block at the column's foot, one notch tighter so all four bands fit the pinned card */
+.walk-table-wrap { display: block; } /* fold table plus its legend as one block so the legend never rides into the leave-one-out heading */
+.walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 0; line-height: 1.1; } /* fold grid — fixed layout so all five columns stay inside the card */
+.walk th { text-align: right; padding: 1px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head — trimmed vertical padding reclaims a few px inside the pinned card */
 .walk th:first-child { text-align: left; } /* fold label column */
-.walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
+.walk td { padding: 1px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell — trimmed vertical padding tightens the five rows without clipping any figure */
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
-.walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: calc(var(--u) * .5) 0 calc(var(--u) * .375); } /* loo heading — reads as its own labelled block under the fold table */
-.loo { display: flex; flex-direction: column; gap: 3px; list-style: none; margin: 0; padding: 0; } /* loo list — a prominent block of feature grades, no bullets */
-.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.25; white-space: nowrap; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; background: #0a1526; } /* loo row — each grade its own framed line, prominent beneath the fold table */
+.walk-legend { color: var(--dim); font-size: 11px; line-height: 1.15; letter-spacing: .02em; margin-top: 2px; } /* fold legend for the abbreviated heads */
+.loose-head { font-size: 12px; line-height: 1.1; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: 0; } /* loo heading — its own labelled block, its top gap supplied by the column instead */
+.loo { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; } /* loo list — a prominent block of feature grades, no bullets, never compressed below its content */
+.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.2; white-space: nowrap; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; background: #0a1526; } /* loo row — each grade its own framed line, prominent beneath the fold table */
 .loo-name { color: var(--ink); min-width: 66px; font-weight: 600; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--accent); } /* dropped miss — accented so the figure reads as evidence */
 .badge { margin-left: auto; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; } /* result badge — one line, pushed to the row's right edge */

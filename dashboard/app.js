@@ -379,13 +379,18 @@
         h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept — earns its place' : 'tested — not kept'));
     });
     return card('Walk-forward validation', 'walkForwardX() \u00b7 graded on the fold it never saw',
-      h('div', null,
-        h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
-        h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
-      h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
-      h('ul', { class: 'loo' }, looX),
-      h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
-        + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — five sequential folds, each graded on the slice the curve never saw.'));
+      // The four walk-forward blocks ride one column in normal flow (no absolute positioning, no negative
+      // margins, no clipped fixed heights) so the fold table, the leave-one-out list and the pooled-miss
+      // line stack as clearly separated bands instead of sharing the pinned card height and compressing
+      // until the list overruns the note.
+      h('div', { class: 'walk-body' },
+        h('div', { class: 'walk-table-wrap' },
+          h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
+          h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
+        h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
+        h('ul', { class: 'loo' }, looX),
+        h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
+          + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — five sequential folds, each graded on the slice the curve never saw.')));
   } // c
 
   function svg(tag, attrs, text) {
