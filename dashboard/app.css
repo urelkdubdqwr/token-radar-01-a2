@@ -136,20 +136,21 @@ h4.section { font-size: 14px; text-transform: uppercase; letter-spacing: .12em; 
 footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; border-top: 1px solid var(--line); padding-top: calc(var(--u) * 2); line-height: 1.6; } /* page footer */
 
 /* Analytics band — model plus its out-of-sample check, shown above the table. */
-.analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: calc(var(--u) * .875); margin: calc(var(--u) * .75) 0; align-items: start; } /* analytics grid — the accounting strip takes its own shallow row, the four panels sit on the row beneath at a pinned 360px */
+.analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: calc(var(--u) * .875); margin: calc(var(--u) * .75) 0; align-items: stretch; } /* analytics grid — the accounting strip takes its own shallow row, the four panels sit on the row beneath at a pinned 360px */
 .analytics .acct-card { grid-column: 1 / -1; } /* accounting strip spans the full width on its own shallow row above the four panels */
 .analytics .card:not(.acct-card) { height: 360px; } /* the four-panel band is pinned to 360px so no card can drag the equal-height row taller */
 .card { border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * 1.125); min-height: 0; overflow: hidden; display: flex; flex-direction: column; } /* analytics card — fixed-height flex column so content is compressed inside the band, never allowed to grow it */
+.card > *:not(.card-head) { flex: 1 1 auto; min-height: 0; } /* card bodies grow to fill the equal-height row, so no panel trails dead whitespace at its foot */
 .card-head { margin-bottom: calc(var(--u) * .5); } /* card header */
 .card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); overflow-wrap: normal; word-break: normal; hyphens: none; } /* card header text — wraps between whole words ("OUT OF" / "SAMPLE"), never cutting one in half */
 .card-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; line-height: 1.25; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card subheading — wraps between whole words rather than clipping one mid-word */
 .card .note { color: var(--muted); font-size: 11.5px; line-height: 1.3; margin: 3px 0 0; } /* card note */
 
 /* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
-.acct-card { grid-column: 1 / -1; padding: calc(var(--u) * .5) calc(var(--u) * 1.125); } /* full-width accounting strip */
+.acct-card { grid-column: 1 / -1; padding: calc(var(--u) * .5) calc(var(--u) * 1.125); } /* full-width accounting strip — trimmed vertical padding keeps the compact strip under ~40px */
 .acct-inline { display: flex; align-items: center; gap: calc(var(--u) * 1.25); min-height: 34px; } /* label, counts and bar share one line */
 .acct-title { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); white-space: nowrap; flex: 0 0 auto; } /* strip label */
-.acct-bar { display: flex; flex: 1 1 auto; height: 20px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); } /* stacked band — thin so the whole strip stays under ~52px */
+.acct-bar { display: flex; flex: 1 1 auto; height: 17px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); } /* stacked band — a hair thinner so the strip gives the board back a few px */
 .acct-seg { display: flex; align-items: center; justify-content: center; min-width: 0; color: #04121a; font-family: var(--mono); font-size: 13px; font-weight: 700; overflow: hidden; } /* one slice */
 .acct-key { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); flex: 0 0 auto; } /* key row — inline counts beside the bar */
 .acct-key li { display: inline-flex; align-items: center; gap: 6px; } /* key entry */
@@ -172,6 +173,11 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .oos-item .k-value { font-family: var(--mono); font-size: 18px; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; } /* box figure */
 .oos-item .k-sub { font-size: 10.5px; color: var(--muted); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
 
+/* Out-of-sample compact grade lines — one held-out figure per line, figure-first, never truncated. */
+.oos-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; } /* four held-out grades, two up — compact enough for the fixed panel, each line still whole */
+.oos-metric { font-family: var(--mono); font-size: 11px; line-height: 1.2; color: var(--ink); white-space: normal; overflow-wrap: anywhere; } /* one grade — figure-first, wraps only if it must, never an ellipsis */
+.oos-brier { margin-top: 3px; } /* the odds line closes the panel under the size-band strip */
+
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
 .walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
 .walk th { text-align: right; padding: 2px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head */
@@ -180,11 +186,11 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
 .walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
 .loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
-.loo { display: flex; flex-direction: column; gap: 2px; } /* loo list */
-.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
-.loo-name { color: var(--ink); min-width: 70px; } /* feature name */
+.loo { display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; } /* loo list — a plain list of feature grades, no bullets */
+.loo-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; line-height: 1.2; white-space: nowrap; } /* loo row — one grade per line, never wraps out of the panel */
+.loo-name { color: var(--ink); min-width: 64px; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
-.badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
+.badge { margin-left: auto; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; } /* result badge — one line, pushed to the row's right edge */
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
 
@@ -192,10 +198,10 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .calstrip { margin-top: 3px; } /* wrapper */
 .calstrip-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 2px; } /* strip label */
 .calstrip-row { display: flex; gap: 6px; } /* tier row */
-.cal-cell { flex: 1; text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: #0a1526; } /* tier cell */
-.cal-cell b { display: block; font-family: var(--mono); font-size: 16px; color: var(--accent); line-height: 1.1; } /* tier percent */
-.cal-cell span { font-size: 10.5px; color: var(--muted); display: block; } /* tier name */
-.cal-cell em { font-size: 10px; color: var(--dim); font-style: normal; } /* tier n */
+.cal-cell { flex: 1; text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 1px 2px; background: #0a1526; min-width: 0; } /* tier cell — compact so the four bands ride one short row */
+.cal-cell b { display: block; font-family: var(--mono); font-size: 14px; color: var(--accent); line-height: 1.05; } /* tier percent */
+.cal-cell span { display: block; font-size: 9.5px; color: var(--muted); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: clip; } /* tier name */
+.cal-cell em { display: block; font-size: 9px; color: var(--dim); font-style: normal; line-height: 1.1; } /* tier n */
 
 /* Methodology strip inside the out-of-sample panel: one formula line, then a row of factor step chips. */
 .methodline { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; } /* compact strip — heading and chips share one wrapping row, total height about 30px */
