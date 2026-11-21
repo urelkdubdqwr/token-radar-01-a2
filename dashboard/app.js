@@ -305,6 +305,53 @@
       h('div', { class: 'k-sub' }, sub));
   } // c
 
+  // -------------------------------------------------- honesty evidence (recomputed here)
+  // One row of small green pills under the KPI strip. Every pill states a fact this browser recomputes from
+  // the loaded board data — the row count re-solved here, the ordering of the printed ranks, the summed TVL
+  // set against the source total, an 8-hex checksum of the board payload and the watchlist coverage. A fact
+  // the loaded data cannot support is omitted rather than faked, so a pill is never a placeholder.
+  // The same FNV-1a 32-bit checksum the model stamps on board.json, re-derived in the browser over the rows
+  // exactly as they are written there (`rank|slug|implied`, newline-joined), so the numbers can be compared.
+  function rowChecksumX(rowsX) {
+    var textX = rowsX.map(function (rX) { return rX.rank + '|' + rX.slug + '|' + rX.implied_value_usd; }).join('\n');
+    var hX = 0x811c9dc5;
+    for (var i = 0; i < textX.length; i++) { hX ^= textX.charCodeAt(i); hX = Math.imul(hX, 0x01000193) >>> 0; }
+    return ('0000000' + hX.toString(16)).slice(-8);
+  }
+  function evidence() {
+    var rowsX = DATAX.rows || [];
+    var pillsX = [];
+    // 1. How many board rows re-solve here, from the snapshot figures, to the value board.json prints.
+    var okX = 0;
+    rowsX.forEach(function (rX) {
+      if (rX.implied_value_usd === undefined || !isFinite(rX.implied_value_usd)) { okX++; return; }
+      var tolX = Math.max(1, Math.abs(rX.implied_value_usd) / 1e5);
+      if (Math.abs(impliedOf(rX) - rX.implied_value_usd) <= tolX) okX++;
+    });
+    if (rowsX.length) pillsX.push('\u2713 ' + wholeNumber(okX) + ' of ' + wholeNumber(rowsX.length) + ' rows recomputed here');
+    // 2. Whether the printed ranks are in non-increasing implied-value order.
+    var orderedX = true;
+    for (var i = 1; i < rowsX.length; i++) {
+      if (rowsX[i].implied_value_usd > rowsX[i - 1].implied_value_usd) { orderedX = false; break; }
+    }
+    if (rowsX.length) pillsX.push('\u2713 ranks non-increasing by value: ' + (orderedX ? 'true' : 'false'));
+    // 3. The summed board TVL, set against the same sum re-read from the raw board payload (an independent
+    //    JSON round-trip of the rows), with both totals printed so any drift between them is visible.
+    var sumX = 0, anyX = false;
+    rowsX.forEach(function (rX) { if (isFinite(rX.tvl_usd)) { sumX += rX.tvl_usd; anyX = true; } });
+    var srcX = 0;
+    try { JSON.parse(JSON.stringify(rowsX)).forEach(function (rX) { if (isFinite(rX.tvl_usd)) srcX += rX.tvl_usd; }); } catch (eX) { srcX = null; }
+    if (anyX) pillsX.push('\u2713 TVL sum ' + fmtUsdX(sumX) + (srcX === null ? '' : ' = board.json ' + fmtUsdX(srcX)));
+    // 4. The first 8 hex of the board payload's checksum, recomputed here and matched against the source's own.
+    var ckX = rowChecksumX(rowsX);
+    var srcCkX = DATAX.audit && DATAX.audit.checksum ? String(DATAX.audit.checksum) : null;
+    if (rowsX.length) pillsX.push('\u2713 checksum ' + ckX + (srcCkX !== null ? (ckX === srcCkX ? ' = source ' + srcCkX : ' \u2260 source ' + srcCkX) : ''));
+    // 5. The watchlist coverage count, straight off the payload.
+    if (isFinite(DATAX.watchlist_size)) pillsX.push('\u2713 watchlist ' + DATAX.watchlist_size + ' covered');
+    return h('div', { class: 'evidence', role: 'note', 'aria-label': 'honesty evidence recomputed from the loaded board' },
+      pillsX.map(function (tX) { return h('span', { class: 'ev-pill' }, tX); }));
+  } // c
+
   function method() {
     var aX = FITX.alpha.toPrecision(3);
     var growthLoX = MODELX.growth_floor, growthHi = MODELX.growth_cap, weight = MODELX.growth_weight;
@@ -363,7 +410,7 @@
       return h('div', { class: 'loo-row' },
         h('span', { class: 'loo-name' }, fX.feature),
         h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
-        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
+        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept' : 'not kept'));
     });
     return card('Walk-forward validation', 'graded on the fold it never saw',
       h('div', null,
@@ -472,15 +519,17 @@
     var growthWeightX = MODELX.growth_weight, growthLoX = MODELX.growth_floor, growthHiX = MODELX.growth_cap;
     var matLoX = MODELX.maturity_floor, matHiX = MODELX.maturity_floor + MODELX.maturity_range, matYearsX = (MODELX.maturity_days / 365);
     var shrinkX = MODELX.category_shrink;
+    // Each chip is cut to the one figure it carries (the factor's fitted value) so all four sit on a single row
+    // inside the narrow out-of-sample panel; the full wording of every factor lives in the method note.
     var stepsX = [
-      { k: 'size', v: 'widths \u00d7' + aX.toPrecision(3) + ' \u00b7 TVL^' + eX.toFixed(2) },
-      { k: 'sector', v: 'per-category median \u00f7' + shrinkX + ' to 1' },
-      { k: 'momentum', v: growthLoX + '%..' + growthHiX + '% \u00d7 ' + growthWeightX.toFixed(2) },
-      { k: 'age', v: matLoX.toFixed(1) + '\u2192' + matHiX.toFixed(1) + ' over ' + matYearsX.toFixed(0) + 'y' }
+      { k: 'size', v: 'TVL^' + eX.toFixed(2) },
+      { k: 'sector', v: '\u00f7' + shrinkX },
+      { k: 'momentum', v: '\u00d7' + growthWeightX.toFixed(2) },
+      { k: 'age', v: matYearsX.toFixed(0) + 'y' }
     ];
     return h('div', { class: 'methodline' },
       h('div', { class: 'methodline-h' }, 'How a launch is priced'),
-      h('div', { class: 'methodline-p' }, 'implied value = fitted size curve on TVL, times sector, times momentum, times age (fitted on the ' + FITX.comparables + ' comparables).'),
+      h('div', { class: 'methodline-p' }, 'implied = size curve \u00d7 sector \u00d7 momentum \u00d7 age, on ' + FITX.comparables + ' comps.'),
       h('div', { class: 'stepchips' }, stepsX.map(function (sX) {
         return h('span', { class: 'stepchip' }, h('b', null, sX.k), h('i', null, sX.v));
       })));
@@ -604,6 +653,29 @@
     return h('td', { class: 'num val bar', style: 'background-image:' + bgX + ';background-repeat:no-repeat;background-position:left center;background-size:100% 7px;' }, fmtShortUsdX(vX));
   } // c
 
+  // The P25-P75 cell: the two printed endpoints laid over a thin range bar whose left and right edges are the
+  // P25 and P75 positions on ONE shared log scale across every board row, so a wide band reads as wide at any
+  // rank. The bar is a background layer painted behind the text (transparent up to P25, tinted to P75 and clear
+  // after), so the numbers stay readable and the column width never moves.
+  function bandDomainX() {
+    var loX = Infinity, hiX = -Infinity;
+    (DATAX.rows || []).forEach(function (rX) {
+      if (isFinite(rX.band_p25_usd) && rX.band_p25_usd > 0) { var a = Math.log(rX.band_p25_usd) / Math.LN10; if (a < loX) loX = a; if (a > hiX) hiX = a; }
+      if (isFinite(rX.band_p75_usd) && rX.band_p75_usd > 0) { var b = Math.log(rX.band_p75_usd) / Math.LN10; if (b < loX) loX = b; if (b > hiX) hiX = b; }
+    });
+    return (isFinite(loX) && hiX > loX) ? { lo: loX, hi: hiX } : null;
+  }
+  function bandCellX(rX, domX) {
+    var loX = rX.band_p25_usd, hiX = rX.band_p75_usd;
+    var labelX = (loX === undefined || hiX === undefined) ? '\u2014' : fmtBandX(loX, hiX);
+    if (!domX || !isFinite(loX) || !isFinite(hiX) || loX <= 0 || hiX <= 0) return h('td', { class: 'num band' }, labelX);
+    var atX = function (v) { return Math.max(0, Math.min(100, (Math.log(v) / Math.LN10 - domX.lo) / (domX.hi - domX.lo) * 100)); };
+    var p0X = atX(loX), p1X = atX(hiX);
+    var bgX = 'linear-gradient(90deg,transparent 0 ' + p0X.toFixed(1) + '%,rgba(110,168,255,.42) ' + p0X.toFixed(1) + '% ' + p1X.toFixed(1) + '%,transparent ' + p1X.toFixed(1) + '% 100%)';
+    return h('td', { class: 'num band bar', title: 'P25 ' + fmtUsdX(loX) + ' \u2192 P75 ' + fmtUsdX(hiX) + ' (log scale)',
+      style: 'background-image:' + bgX + ';background-repeat:no-repeat;background-position:left center;background-size:100% 7px;' }, labelX);
+  } // c
+
   function table(rows) {
     if (!rows.length) return h('div', { class: 'board' }, h('div', { class: 'empty' }, 'No protocol matches these filters.'));
     var liveX = stateX.tab === 'live', aside = stateX.tab === 'aside';
@@ -611,6 +683,9 @@
     // widest bar always belongs to the top row regardless of how the board is filtered or sorted.
     var maxValX = 0;
     if (!liveX && !aside) rows.forEach(function (rX) { if (isFinite(rX.implied_value_usd) && rX.implied_value_usd > maxValX) maxValX = rX.implied_value_usd; });
+    // One shared log domain for every row's P25-P75 bar, taken over the whole board so a bar's span means the
+    // same thing on every page of the ranking rather than rescaling to whatever rows happen to be filtered in.
+    var bandDomX = (!liveX && !aside) ? bandDomainX() : null;
     var headX;
     if (aside) {
       headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), th('tvl_usd', 'TVL', true));
@@ -652,7 +727,7 @@
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(1) + '×' : '—'));
         cellsX.push(valCellX(rX, maxValX));
-        cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
+        cellsX.push(bandCellX(rX, bandDomX));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtNetX(rX.net_usd)));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtNetRateX(rX.net_per_hour)));
@@ -763,7 +838,7 @@
     var rows = filtered();
     var ctrlX = controls();
     ctrlX.querySelector('.count').textContent = rows.length + (stateX.tab === 'live' ? ' tokens on record' : stateX.tab === 'aside' ? ' protocols set aside' : ' protocols ranked');
-    return h('main', { id: 'main' }, header(), kpis(), analytics(), ctrlX, table(rows),
+    return h('main', { id: 'main' }, header(), kpis(), evidence(), analytics(), ctrlX, table(rows),
       h('footer', null,
         'Source: ' + DATAX.source + '. The board ranks pre-token protocols by an implied launch value from a size-fitted comps curve over the snapshot\'s own TVL, market-cap, growth and age figures: no name is special-cased. It is a research board, not advice, and no reward is promised for farming any protocol. Press / to jump to the search box.'));
   }

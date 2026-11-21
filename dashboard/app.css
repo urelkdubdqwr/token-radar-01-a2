@@ -59,6 +59,11 @@ h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercas
 .kpi.hero .k-sub { font-size: 11px; } /* hero footnote — held-out sentence held to one clamped line like every other sub */
 .kpi.hero { padding-top: calc(var(--u) * .75); } /* top padding back to the strip's own so the shorter hero row does not re-inflate */
 
+/* Honesty evidence — one row of small green pills under the KPI strip; each pill is a fact this browser
+   recomputed from the loaded board data, held to a single line so the row reads as one quiet seal band. */
+.evidence { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; margin: calc(var(--u) * .25) 0 0; overflow: hidden; } /* one-line pill band — never wraps, never drags the strip taller */
+.ev-pill { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-family: var(--mono); font-size: 11px; line-height: 1.2; letter-spacing: .02em; color: var(--accent); background: #0c1f22; border: 1px solid #2b5c66; border-radius: 999px; padding: 2px 9px; } /* a single green verification pill */
+
 /* Controls */
 .controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
 .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; } /* segmented control */
@@ -69,12 +74,12 @@ select { background: var(--panel); border: 1px solid var(--line); color: var(--i
 .count { color: var(--dim); font-size: 14.5px; margin-left: auto; } /* result tally */
 
 /* Table */
-.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 772px; } /* table frame — sized to a whole number of two-line rows so the visible board always ends on a row edge, never mid-row */
+.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 727px; } /* table frame — border plus header plus exactly twelve two-line rows (2 + 29 + 12x58) so the visible board ends on a row edge, never mid-row */
 table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout: fixed; } /* grid base — larger row type, fixed layout keeps every column inside the frame */
 thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~75px; ten whole rows clear the frame without cropping the last */
+tbody td { padding: 10px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~58px; twelve whole rows clear the frame without cropping the last */
 tbody td.num { white-space: nowrap; text-overflow: clip; } /* numeric cells stay on one line and never draw an ellipsis — the compact formats fit their column whole */
 /* The protocol-name cell is the one free-text column: it carries the name on its first line and the row's
    one-sentence farm plan on a second line beneath it. Both lines stay whole — the name never breaks mid-word. */
@@ -118,19 +123,19 @@ tbody tr.static:hover { background: transparent; } /* no hover for static */
 /* Detail drawer */
 .drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 94vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -24px 0 60px #0009; transform: translateX(102%); transition: transform .18s ease; overflow-y: auto; z-index: 40; } /* slide-in panel */
 .drawer.open { transform: none; } /* shown state */
-.drawer .bar { display: flex; justify-content: space-between; align-items: center; padding: calc(var(--u) * 2); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); } /* drawer header */
+.drawer .bar { display: flex; justify-content: space-between; align-items: center; padding: calc(var(--u) * 1.25) calc(var(--u) * 2); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); } /* drawer header - shaved top/bottom padding so the body below gains vertical room without changing the drawer's width */
 .drawer h3 { margin: 0; font-size: 20px; } /* drawer title */
 .drawer .close { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; } /* dismiss button */
-.drawer .body { padding: calc(var(--u) * 2); } /* drawer content */
-.kv { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; font-size: 15px; margin-bottom: calc(var(--u) * 2); } /* key/value grid */
+.drawer .body { padding: calc(var(--u) * 1.25) calc(var(--u) * 2); } /* drawer content - trimmed vertical padding so the plan and peers clear the drawer's bottom edge */
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 3px 14px; font-size: 14px; margin-bottom: calc(var(--u) * 1.25); } /* key/value grid - tighter row gaps so the whole record fits the drawer */
 .kv dt { color: var(--dim); } /* term */
 .kv dd { margin: 0; font-family: var(--mono); color: var(--ink); } /* value */
-.math { background: #0a1526; border: 1px solid var(--line); border-radius: 8px; padding: calc(var(--u) * 1.5); font-family: var(--mono); font-size: 14px; line-height: 1.7; color: var(--muted); margin-bottom: calc(var(--u) * 2); } /* formula block */
+.math { background: #0a1526; border: 1px solid var(--line); border-radius: 8px; padding: calc(var(--u) * 1.125); font-family: var(--mono); font-size: 13.5px; line-height: 1.5; color: var(--muted); margin-bottom: calc(var(--u) * 1.25); } /* formula block - denser padding and line-height so the three math blocks stack tighter */
 .math b { color: var(--accent); } /* emphasis in formula */
 .steps { margin: 0; padding-left: 18px; } /* ordered steps */
-.steps li { margin-bottom: calc(var(--u) * 1.25); font-size: 15px; line-height: 1.5; } /* step line */
-.steps .meta { color: var(--dim); font-size: 13.5px; } /* step footnote */
-h4.section { font-size: 14px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: calc(var(--u) * 2) 0 calc(var(--u)); } /* drawer section head */
+.steps li { margin-bottom: calc(var(--u) * .5); font-size: 14px; line-height: 1.32; } /* step line - tighter line-height and gaps so all six plan steps render inside the drawer */
+.steps .meta { color: var(--dim); font-size: 12.5px; line-height: 1.2; } /* step footnote */
+h4.section { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: calc(var(--u) * 1.25) 0 calc(var(--u) * .5); } /* drawer section head - trimmed top/bottom margin so each section head costs less height */
 .scrim { position: fixed; inset: 0; background: #0006; opacity: 0; pointer-events: none; transition: opacity .18s; z-index: 30; } /* dim behind drawer */
 .scrim.on { opacity: 1; pointer-events: auto; } /* dim shown */
 footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; border-top: 1px solid var(--line); padding-top: calc(var(--u) * 2); line-height: 1.6; } /* page footer */
@@ -184,7 +189,7 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
 .loo-name { color: var(--ink); min-width: 70px; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
-.badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
+.badge { margin-left: auto; font-size: 11.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; } /* result badge - trimmed so the longest label (not kept) keeps clear of the card's right edge */
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
 
@@ -198,16 +203,16 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .cal-cell em { font-size: 10px; color: var(--dim); font-style: normal; } /* tier n */
 
 /* Methodology strip inside the out-of-sample panel: one formula line, then a row of factor step chips. */
-.methodline { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; } /* compact strip — heading and chips share one wrapping row, total height about 30px */
+.methodline { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 1px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 5px; } /* compact strip - heading, formula and chips share a tightly-gapped wrapping row so the whole block clears the fixed panel's bottom edge */
 .methodline-h { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 0; flex: 0 0 auto; } /* strip heading — one compact line leading the chips */
-.methodline-p { font-size: 11px; color: var(--muted); line-height: 1.2; margin: 0; flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; } /* formula in words — wraps in full beside the heading, never truncated */
-.stepchips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; } /* factor chips — one wrapping row under the heading line */
-.stepchip { display: inline-flex; align-items: baseline; gap: 3px; border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 1px 5px; font-size: 11px; line-height: 1.1; } /* one compact step chip */
-.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; } /* factor name */
-.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 11.5px; } /* fitted value */
+.methodline-p { font-size: 11px; color: var(--muted); line-height: 1.15; margin: 0; flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; } /* formula in words - wraps in full beside the heading, never truncated */
+.stepchips { display: flex; flex-wrap: wrap; gap: 1px; flex: 1 1 100%; } /* factor chips - one wrapping row under the heading line */
+.stepchip { display: inline-flex; align-items: baseline; gap: 2px; border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 1px 3px; font-size: 9.5px; line-height: 1.05; } /* one compact step chip - trimmed so all four fit one row inside the narrow panel */
+.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; font-size: 9.5px; } /* factor name */
+.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 10px; } /* fitted value */
 
 /* Detail-view band strip: a thin track with a filled P25..P75 span and three tick marks. */
-.bstrip { position: relative; height: 16px; margin: 8px 0 2px; background: #0a1526; border: 1px solid var(--line); border-radius: 4px; } /* track */
+.bstrip { position: relative; height: 14px; margin: 5px 0 2px; background: #0a1526; border: 1px solid var(--line); border-radius: 4px; } /* track */
 .bstrip-fill { position: absolute; top: 0; bottom: 0; background: #1f5566; } /* filled P25..P75 */
 .bstrip-t { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--muted); transform: translateX(-1px); } /* tick */
 .bstrip-t.mid { background: var(--accent); } /* implied-value tick */
