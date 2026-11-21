@@ -357,8 +357,9 @@
   } // c
 
   // Walk-forward panel: five sequential folds the curve never trained on, each graded against a flat
-  // multiple, then a per-feature leave-one-out table. A feature is called out as "tested, not kept" when
-  // dropping it does not worsen the held-out miss, i.e. it earns nothing.
+  // multiple, then the per-feature leave-one-out ablation as its own prominent block beneath the table so
+  // the dropped-feature evidence sits alongside the fold table rather than as tiny text in another column.
+  // A feature is called out as "tested, not kept" when dropping it does not worsen the held-out miss.
   function walkCard() {
     var wX = FITX.walk_forward || { folds: [], miss: 0, flat_miss: 0, tested: 0 };
     var rowsX = (wX.folds || []).map(function (fX) {
@@ -371,10 +372,18 @@
     });
     var headX = h('tr', null, h('th', null, 'Fold'), h('th', { class: 'num' }, 'Train'), h('th', { class: 'num' }, 'Held out'),
       h('th', { class: 'num' }, 'Curve'), h('th', { class: 'num' }, 'Flat'));
+    var looX = (FITX.feature_loo || []).map(function (fX) {
+      return h('li', { class: 'loo-row' },
+        h('span', { class: 'loo-name' }, fX.feature),
+        h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
+        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept — earns its place' : 'tested — not kept'));
+    });
     return card('Walk-forward validation', 'walkForwardX() \u00b7 graded on the fold it never saw',
       h('div', null,
         h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
         h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
+      h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
+      h('ul', { class: 'loo' }, looX),
       h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
         + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — five sequential folds, each graded on the slice the curve never saw.'));
   } // c
@@ -437,35 +446,36 @@
       h('div', { class: 'scatter-wrap' }, sX), legendX);
   }
 
-  // The dedicated out-of-sample panel: the curve's four held-out grades, each on its own compact line, then
-  // the full per-feature leave-one-out list, the printed-rank honesty by size band, and the stated odds' Brier
-  // against the base-rate line. Every figure is read off FITX/DATAX, never retyped, and the panel is given its
-  // own slot so the evidence reads as evidence rather than a footnote folded into the walk-forward table.
+  // The dedicated out-of-sample panel: the curve's four held-out grades plus the stated odds' Brier and the
+  // base rate they are scored against, all as six large labeled stat blocks on a 3-across grid (two rows of
+  // three) so the evidence is scannable at a glance rather than read as prose. Each value is read off
+  // FITX/DATAX, never retyped; where a grade has a flat baseline that baseline rides a tiny sub-line.
   function oosCard() {
     var oX = FITX.out_of_sample || {};
     var wX = FITX.walk_forward || { miss: 0, flat_miss: 0, tested: 0 };
     var oToken = DATAX.token_odds || {};
     var brierX = oToken.brier || 0, baseX = oToken.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
-    var lines = [
-      'in-sample ×' + (FITX.median_abs_error || 0).toFixed(2) + ' vs flat ×' + (oX.flat_miss_median || 0).toFixed(2) + ' · ' + FITX.comparables + ' priced',
-      'walk-forward ×' + (wX.miss || 0).toFixed(2) + ' vs flat ×' + (wX.flat_miss || 0).toFixed(2) + ' · ' + (wX.tested || 0) + ' held out',
-      'leave-one-out ×' + (oX.miss_median || 0).toFixed(2) + ' vs flat ×' + (oX.flat_miss_median || 0).toFixed(2) + ' · ' + (oX.tested || 0) + ' held out',
-      'time-split ×' + (oX.split_miss || 0).toFixed(2) + ' vs flat ×' + (oX.split_flat_miss || 0).toFixed(2) + ' · ' + (oX.split_tested || 0) + ' newer held out'
+    var blocks = [
+      oosStat('×' + (FITX.median_abs_error || 0).toFixed(2), 'in-sample miss', 'flat ×' + (oX.flat_miss_median || 0).toFixed(2)),
+      oosStat('×' + (oX.miss_median || 0).toFixed(2), 'leave-one-out', 'flat ×' + (oX.flat_miss_median || 0).toFixed(2) + ' · ' + (oX.tested || 0) + ' held out'),
+      oosStat('×' + (wX.miss || 0).toFixed(2), 'walk-forward', 'flat ×' + (wX.flat_miss || 0).toFixed(2) + ' · ' + (wX.tested || 0) + ' held out'),
+      oosStat('×' + (oX.split_miss || 0).toFixed(2), 'time-split', 'flat ×' + (oX.split_flat_miss || 0).toFixed(2) + ' · ' + (oX.split_tested || 0) + ' held out'),
+      oosStat('×' + brierX.toFixed(3), 'odds brier', 'vs ' + baseBrierX.toFixed(3) + ' base line'),
+      oosStat((baseX * 100).toFixed(0) + '%', 'base rate', (oToken.n || 0) + ' protocols · ×' + baseBrierX.toFixed(3))
     ];
-    var looX = (FITX.feature_loo || []).map(function (fX) {
-      return h('li', { class: 'loo-row' },
-        h('span', { class: 'loo-name' }, fX.feature),
-        h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
-        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept — earns its place' : 'tested — not kept'));
-    });
     return card('Out of sample', 'the curve, tested on protocols it did not fit',
-      h('ul', { class: 'oos-list' }, lines.map(function (tX) { return h('li', { class: 'oos-metric' }, tX); })),
-      h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
-      h('ul', { class: 'loo' }, looX),
-      calStripX(),
-      h('p', { class: 'note oos-brier' }, 'Stated odds score a Brier of ' + brierX.toFixed(3) + ' against the '
-        + (baseX * 100).toFixed(0) + '% base rate — below the ' + baseBrierX.toFixed(3) + ' base-rate line, so they carry signal beyond the mean.'));
+      h('div', { class: 'oos-grid' }, blocks),
+      calStripX());
+  } // c
+
+  // One out-of-sample stat block: the figure large and in accent ink, its short label beneath, and an optional
+  // flat-baseline sub-line under that. The six blocks share the panel's 3-across grid so the rows line up.
+  function oosStat(value, label, sub) {
+    return h('div', { class: 'oos-big' },
+      h('b', null, String(value)),
+      h('span', null, label),
+      sub ? h('em', null, sub) : null);
   } // c
 
   // Is the printed rank honest? For each TVL tier, the out-of-sample share of priced protocols whose value

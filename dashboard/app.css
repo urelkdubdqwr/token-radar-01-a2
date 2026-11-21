@@ -166,17 +166,14 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .legend .sq { color: var(--accent); } /* square symbol */
 .legend .ln { color: var(--accent-2); } /* line symbol */
 
-/* Out-of-sample items — compact stat boxes; the figure is styled like a KPI number. */
-.oos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; } /* two-up grid — tight so the six held-out figures fit the fixed panel */
-.oos-item { border: 1px solid var(--line); border-radius: 7px; background: #0a1526; padding: 2px 6px; } /* stat box — compressed padding */
-.oos-item .k-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); line-height: 1.05; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box label — whole words, no mid-word ellipsis */
-.oos-item .k-value { font-family: var(--mono); font-size: 18px; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; } /* box figure */
-.oos-item .k-sub { font-size: 10.5px; color: var(--muted); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
-
-/* Out-of-sample compact grade lines — one held-out figure per line, figure-first, never truncated. */
-.oos-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; } /* four held-out grades, two up — compact enough for the fixed panel, each line still whole */
-.oos-metric { font-family: var(--mono); font-size: 11px; line-height: 1.2; color: var(--ink); white-space: normal; overflow-wrap: anywhere; } /* one grade — figure-first, wraps only if it must, never an ellipsis */
-.oos-brier { margin-top: 3px; } /* the odds line closes the panel under the size-band strip */
+/* Out-of-sample stat blocks — six large labeled figures on a 3-across grid (two rows of three) so the
+   held-out evidence is scannable at a glance; figure big and accented, label beneath, flat baseline as a
+   tiny sub-line. The grid takes the panel's width and a fixed two-row shape, sized to fit the pinned card. */
+.oos-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: calc(var(--u) * .5); margin-bottom: calc(var(--u) * .625); flex: 0 0 auto; } /* six blocks, three up, two rows */
+.oos-big { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: #0a1526; padding: calc(var(--u) * .5) calc(var(--u) * .625); } /* one grade — a compact tile in the evidence grid */
+.oos-big b { font-family: var(--mono); font-size: 23px; line-height: 1.05; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; } /* the figure — large, accent ink, never wraps */
+.oos-big span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); line-height: 1.1; margin-top: 1px; white-space: normal; overflow-wrap: normal; word-break: normal; } /* the label — small caps beneath the figure, wraps between whole words */
+.oos-big em { font-size: 10px; font-style: normal; color: var(--muted); line-height: 1.15; margin-top: 1px; white-space: normal; overflow-wrap: normal; word-break: normal; } /* flat baseline / held-out sub-line — a tiny muted line under the label, wrapping between whole words so the baseline and held-out count never clip */
 
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
 .walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
@@ -185,11 +182,11 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
 .walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
-.loo { display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; } /* loo list — a plain list of feature grades, no bullets */
-.loo-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; line-height: 1.2; white-space: nowrap; } /* loo row — one grade per line, never wraps out of the panel */
-.loo-name { color: var(--ink); min-width: 64px; } /* feature name */
-.loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
+.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: calc(var(--u) * .5) 0 calc(var(--u) * .375); } /* loo heading — reads as its own labelled block under the fold table */
+.loo { display: flex; flex-direction: column; gap: 3px; list-style: none; margin: 0; padding: 0; } /* loo list — a prominent block of feature grades, no bullets */
+.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.25; white-space: nowrap; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; background: #0a1526; } /* loo row — each grade its own framed line, prominent beneath the fold table */
+.loo-name { color: var(--ink); min-width: 66px; font-weight: 600; } /* feature name */
+.loo-miss { font-family: var(--mono); color: var(--accent); } /* dropped miss — accented so the figure reads as evidence */
 .badge { margin-left: auto; font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; } /* result badge — one line, pushed to the row's right edge */
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
