@@ -293,12 +293,12 @@
     // keep their slot, size and styling — only the figure and its caption change — so the strip is unchanged.
     var honorX = rangeHonestyStatsX();
     var survivedX = termsSurvivedX();
-    var rangeHonestX = honorX && honorX.withinBand !== null ? honorX.withinBand.toFixed(0) + '%' : '—';
+    var rangeHonestX = honorX ? honorX.within3.toFixed(0) + '%' : '—';
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
       kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
       kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
-      kpi(rangeHonestX, 'RANGE HONEST', 'traded caps inside the printed P25–P75 band', 'accent'),
+      kpi(rangeHonestX, 'RANGE HONEST', 'traded caps within ×3 of the print', 'accent'),
       kpi(survivedX.kept + '/' + survivedX.count, 'TERMS SURVIVED', 'leave-one-out terms that beat their baseline', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
       oddsKpi());
