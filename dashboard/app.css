@@ -6,7 +6,7 @@
   --line: #1d3049;
   --ink: #e7eefc;
   --muted: #8ba0c2;
-  --dim: #5f7395;
+  --dim: #7185a7; /* secondary label ink — lifted from #5f7395 so a card's small caps clear 4.5:1 on the card's own gradient (#101c30..#0c1422) */
   --accent: #38e0c8;
   --accent-2: #6ea8ff;
   --warn: #ffb454;

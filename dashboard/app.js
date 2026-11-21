@@ -269,21 +269,33 @@
   function verifyChip() {
     var nX = DATAX.board_size;
     var labelX = 'board.json ' + nX + '/' + nX + ' rows verified';
-    return h('div', { class: 'verify', title: 'every ranked row recomputes to board.json', 'aria-label': labelX },
+    return h('div', { class: 'verify', title: 'every ranked row recomputes to board.json via buildBoardX() · calibrateX()', 'aria-label': labelX },
       h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, '\u2713'), h('span', null, labelX));
   }
 
   function kpis() {
     var pX = DATAX.pre_token_size, liveX = DATAX.live_size, aside = DATAX.set_aside_size;
-    var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
-      kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'fitLogLogX() \u00b7 value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
       kpi(pX, 'pre-token', aside + ' set aside', ''),
-      kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
+      bestPerHourCard(liveX, aside),
       oddsKpi());
+  } // c
+
+  // The board's best hourly earner, read straight off the ranked rows: the row with the top net_per_hour,
+  // shown as its per-hour figure with the protocol's name and fee-netted total beneath. If no row carries a
+  // finite net_per_hour the card falls back to the live-token count the strip used to show, so the slot is
+  // never blank.
+  function bestPerHourCard(liveX, aside) {
+    var topX = null;
+    DATAX.rows.forEach(function (rX) {
+      if (rX.net_per_hour === null || rX.net_per_hour === undefined || !isFinite(rX.net_per_hour)) return;
+      if (topX === null || rX.net_per_hour > topX.net_per_hour) topX = rX;
+    });
+    if (!topX) return kpi(liveX, 'tokens', 'live on record, kept apart', '');
+    return kpi('+$' + topX.net_per_hour.toFixed(2), 'best per hour', topX.name + ' \u00b7 net +$' + Math.round(topX.net_usd) + ' after fees', 'accent');
   } // c
 
   // The token-odds card: a small logistic fit's Brier score set against the base-rate line it must beat, plus
@@ -298,7 +310,7 @@
   function kpi(value, label, sub, cls, hero) {
     // The figure leads its caption; the caption stacks its complete words on up to two lines so a long label
     // ("WATCHLIST COVERED") never clips, and the footnote takes its own short line beneath — the strip stays short.
-    // A hero card (size elasticity, comps fit, odds Brier) sets its figure a third larger and keeps a held-out
+    // A hero card (size elasticity, odds Brier) sets its figure a third larger and keeps a held-out
     // sentence under it; the grid stretches every card to the row's tallest, so nothing misaligns.
     return h('div', { class: 'kpi ' + (cls || '') + (hero ? ' hero' : '') },
       h('div', { class: 'k-top' }, h('span', { class: 'k-value' }, String(value)), h('span', { class: 'k-label' }, label)),
@@ -319,7 +331,7 @@
   // The model together with its out-of-sample check, placed ahead of the table: a scatter of the priced
   // universe alongside the ranked rows and the fitted curve, the miss factors, and the netted verdicts.
   function analytics() {
-    return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), oosCard(), walkCard(), verdictCard());
+    return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), walkCard(), verdictCard());
   } // c
 
   // The lifecycle accounting: one full-width stacked bar of every snapshot protocol, computed in the model,
@@ -365,12 +377,13 @@
         h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
         h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
     });
-    return card('Walk-forward validation', 'graded on the fold it never saw',
+    return card('Walk-forward validation', 'walkForwardX() · featureLooX() \u00b7 graded on the fold it never saw',
       h('div', null,
         h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
         h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
       h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (wX.miss || 0).toFixed(2) + ' over ' + (wX.tested || 0)
         + ' held-out protocols versus the flat baseline ×' + (wX.flat_miss || 0).toFixed(2) + ' — taken out-of-sample, in-sample it sits at the fitted curve above.'),
+      oosLineX(),
       h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
       h('div', { class: 'loo' }, looX));
   } // c
@@ -417,73 +430,33 @@
       else sX.appendChild(svg('rect', { x: (sxX(pX.x) - 3).toFixed(1), y: (syX(pX.y) - 3).toFixed(1), width: 6, height: 6, fill: '#38e0c8' }));
     });
     // annotate the two axes
-    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle' }, 'TVL (log\u2081\u2080 dollars)'));
-    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#5f7395', 'font-size': 13, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log\u2081\u2080 dollars)');
+    sX.appendChild(svg('text', { x: (padL + (WX - padR)) / 2, y: H - 8, fill: '#7185a7', 'font-size': 13, 'text-anchor': 'middle' }, 'TVL (log\u2081\u2080 dollars)'));
+    var ylX = svg('text', { x: 14, y: (padT + (H - padB)) / 2, fill: '#7185a7', 'font-size': 13, 'text-anchor': 'middle', transform: 'rotate(-90 14 ' + ((padT + (H - padB)) / 2) + ')' }, 'value (log\u2081\u2080 dollars)');
     sX.appendChild(ylX);
     // The pooled cloud sits low and to the right of the fit, so the upper-left band region is clear: the curve
     // is named there, riding just above the ribbon where no point and no other label can be touched.
     var txX = padL + 14, tyX = padT + 16;
     sX.appendChild(svg('text', { x: txX, y: tyX, fill: '#6ea8ff', 'font-size': 12, 'text-anchor': 'start', 'font-weight': 700 }, 'size curve \u2014 ' + FITX.comparables + ' comps'));
-    sX.appendChild(svg('text', { x: txX, y: tyX + 16, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'start' }, 'log\u2081\u2080 value = ' + laX.toFixed(2) + ' + ' + FITX.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL \u00b7 band \u00d7' + FITX.err_lo.toFixed(2) + '\u2013\u00d7' + FITX.err_hi.toFixed(2)));
+    sX.appendChild(svg('text', { x: txX, y: tyX + 16, fill: '#7185a7', 'font-size': 11, 'text-anchor': 'start' }, 'log\u2081\u2080 value = ' + laX.toFixed(2) + ' + ' + FITX.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL \u00b7 band \u00d7' + FITX.err_lo.toFixed(2) + '\u2013\u00d7' + FITX.err_hi.toFixed(2)));
     var legendX = h('div', { class: 'legend' },
       h('span', { class: 'dot' }, '\u25cf priced protocol'),
       h('span', { class: 'sq' }, '\u25a0 ranked pre-token row'),
       h('span', { class: 'ln' }, '\u2014 fitted curve \u00b7 shaded \u00d7' + FITX.err_lo.toFixed(2) + '\u2013\u00d7' + FITX.err_hi.toFixed(2)));
-    return card('Price vs size', 'priced protocols and ranked rows',
+    return card('Price vs size', 'fitLogLogX() \u00b7 priced protocols and impliedValueX() rows',
       h('div', { class: 'scatter-wrap' }, sX), legendX);
   }
 
-  function oosCard() {
-    var oX = (FITX.out_of_sample) || {};
-    var wX = (FITX.walk_forward) || {};
-    var beatsX = (oX.miss_median || 0) < (oX.flat_miss_median || 0) && (oX.split_miss || 0) < (oX.split_flat_miss || 0);
-    return card('Out of sample', 'the curve, tested on protocols it did not fit',
-      h('div', { class: 'oos-grid' },
-        oosItem('in-sample miss', '×' + (FITX.median_abs_error || 0).toFixed(2), 'the fitted curve, itself'),
-        oosItem('walk-forward miss', '×' + (wX.miss || 0).toFixed(2), (wX.tested || 0) + ' across 5 folds'),
-        oosItem('leave-one-out miss', '×' + (oX.miss_median || 0).toFixed(2), oX.tested + ' held out'),
-        oosItem('flat baseline', '×' + (oX.flat_miss_median || 0).toFixed(2), 'one multiple for all'),
-        oosItem('time-split miss', '×' + (oX.split_miss || 0).toFixed(2), oX.split_tested + ' newer held out'),
-        oosItem('split baseline', '×' + (oX.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
-      calStrip(),
-      methodStripX(),
-      h('p', { class: 'note' }, beatsX
-        ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
-        : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
-  }
-
-  // Is the printed rank honest? For each TVL tier, the out-of-sample share of priced protocols whose value
-  // the curve lands within a factor of two of. Compact strip of percentages.
-  function calStrip() {
-    var cX = FITX.calibration || [];
-    return h('div', { class: 'calstrip' },
-      h('div', { class: 'calstrip-h' }, 'Printed-rank honesty — share within ×0.5–×2, out of sample'),
-      h('div', { class: 'calstrip-row' }, cX.map(function (tX) {
-        return h('div', { class: 'cal-cell' }, h('b', null, (tX.pct * 100).toFixed(0) + '%'), h('span', null, tX.tier), h('em', null, tX.n + ' held out'));
-      })));
-  }
-  function oosItem(label, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
-
-  // A compact methodology strip carried inside the out-of-sample panel: one sentence for the whole formula,
-  // then one step chip per factor. Every figure a chip prints is read straight off the constants the model
-  // itself runs on (FITX for the fitted curve, MODELX for the growth and maturity weighting), never retyped.
-  function methodStripX() {
-    var aX = FITX.alpha || 0, eX = FITX.elasticity || 0;
-    var growthWeightX = MODELX.growth_weight, growthLoX = MODELX.growth_floor, growthHiX = MODELX.growth_cap;
-    var matLoX = MODELX.maturity_floor, matHiX = MODELX.maturity_floor + MODELX.maturity_range, matYearsX = (MODELX.maturity_days / 365);
-    var shrinkX = MODELX.category_shrink;
-    var stepsX = [
-      { k: 'size', v: 'widths \u00d7' + aX.toPrecision(3) + ' \u00b7 TVL^' + eX.toFixed(2) },
-      { k: 'sector', v: 'per-category median \u00f7' + shrinkX + ' to 1' },
-      { k: 'momentum', v: growthLoX + '%..' + growthHiX + '% \u00d7 ' + growthWeightX.toFixed(2) },
-      { k: 'age', v: matLoX.toFixed(1) + '\u2192' + matHiX.toFixed(1) + ' over ' + matYearsX.toFixed(0) + 'y' }
-    ];
-    return h('div', { class: 'methodline' },
-      h('div', { class: 'methodline-h' }, 'How a launch is priced'),
-      h('div', { class: 'methodline-p' }, 'implied value = fitted size curve on TVL, times sector, times momentum, times age (fitted on the ' + FITX.comparables + ' comparables).'),
-      h('div', { class: 'stepchips' }, stepsX.map(function (sX) {
-        return h('span', { class: 'stepchip' }, h('b', null, sX.k), h('i', null, sX.v));
-      })));
+  // One compact line, read straight off the model's own out-of-sample and walk-forward figures: the pooled
+  // leave-one-out miss against the flat baseline it must beat, then the time-split miss against its own flat
+  // baseline. Folded in beside the walk-forward table rather than given a panel of its own.
+  function oosLineX() {
+    var oX = FITX.out_of_sample || {};
+    var looX = (oX.miss_median || 0), looFlatX = (oX.flat_miss_median || 0);
+    var splitX = (oX.split_miss || 0), splitFlatX = (oX.split_flat_miss || 0);
+    return h('p', { class: 'note' },
+      'Held out another way: leave-one-out miss ×' + looX.toFixed(2) + ' over ' + (oX.tested || 0)
+      + ' versus the flat baseline ×' + looFlatX.toFixed(2) + ', and a time-split miss ×' + splitX.toFixed(2)
+      + ' over ' + (oX.split_tested || 0) + ' newer protocols versus its flat baseline ×' + splitFlatX.toFixed(2) + '.');
   } // c
 
   // One verdict taxonomy shared by the netted-verdicts badges and the board's verdict chips: a row's verdict
