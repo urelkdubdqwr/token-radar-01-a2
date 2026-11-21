@@ -69,12 +69,17 @@ select { background: var(--panel); border: 1px solid var(--line); color: var(--i
 .count { color: var(--dim); font-size: 14.5px; margin-left: auto; } /* result tally */
 
 /* Table */
-.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 772px; } /* table frame — sized to a whole number of two-line rows so the visible board always ends on a row edge, never mid-row */
+/* The framed board: .board-wrap draws the outer frame (border + radius + clipped corners) and holds the
+   scroll box (.board) over the always-visible completeness stamp (.board-stamp) so the whole block reads
+   as ONE framed table ending on the stated "198 of 198 shown" line. */
+.board-wrap { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; } /* outer frame — the stamp sits inside it, directly under the scroll box */
+/* 686 (box top) + 1 (wrap top border) + 31 (header) + 9*62 (nine whole two-line rows) + 27 (stamp strip) = 1303 <= 1420 */
+.board { border: none; border-radius: 0; overflow: auto; max-height: 589px; } /* scroll box — 31 header + 9*62 rows = 589, so nine whole two-line rows clear the frame and the last is never sliced */
 table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout: fixed; } /* grid base — larger row type, fixed layout keeps every column inside the frame */
 thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~74px; nine whole rows clear the frame without cropping the last */
+tbody td { padding: 11px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside a ~62px row pitch; nine whole rows clear the frame without cropping the last */
 tbody td.num { white-space: nowrap; text-overflow: clip; } /* numeric cells stay on one line and never draw an ellipsis — the compact formats fit their column whole */
 /* The protocol-name cell is the one free-text column: it carries the name on its first line and the row's
    one-sentence farm plan on a second line beneath it. Both lines stay whole — the name never breaks mid-word. */
@@ -112,10 +117,10 @@ tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /
 .farmplan .fp { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .farmplan .fp.farm { color: var(--accent); }
 .farmplan .fp.marginal { color: var(--warn); }
-/* Board footer stamp: pinned to the frame's bottom, always visible, so the table ends on a stated line. */
-.board-foot { position: sticky; bottom: 0; background: var(--panel-2); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; letter-spacing: .04em; padding: 6px 8px; text-align: left; }
-.board-foot .bf-count { color: var(--ink); font-family: var(--mono); }
-.board-foot .bf-note { float: right; color: var(--dim); }
+/* Board completeness stamp: a strip under the scroll box, inside the frame, so the table always ends on a stated line. */
+.board-stamp { background: var(--panel-2); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; letter-spacing: .04em; padding: 6px 8px; text-align: left; }
+.board-stamp .bf-count { color: var(--ink); font-family: var(--mono); }
+.board-stamp .bf-note { float: right; color: var(--dim); }
 .val { color: var(--accent); font-weight: 600; } /* headline value */
 .pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
 .ratio { color: var(--warn); } /* multiple tint */

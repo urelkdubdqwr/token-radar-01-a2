@@ -631,7 +631,7 @@
   } // c
 
   function table(rows) {
-    if (!rows.length) return h('div', { class: 'board' }, h('div', { class: 'empty' }, 'No protocol matches these filters.'));
+    if (!rows.length) return h('div', { class: 'board-wrap' }, h('div', { class: 'board' }, h('div', { class: 'empty' }, 'No protocol matches these filters.')));
     var liveX = stateX.tab === 'live', aside = stateX.tab === 'aside';
     // The magnitude bars in the implied-value column are scaled to the largest implied value on screen, so the
     // widest bar always belongs to the top row regardless of how the board is filtered or sorted.
@@ -691,14 +691,15 @@
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
     });
-    // The table closes with a completeness stamp pinned to the frame's bottom edge — e.g. "198 of 198 shown"
-    // — so the visible table ends on a stated line rather than a sliced row.
-    var colsX = aside ? 3 : liveX ? 6 : 9;
+    // The completeness stamp — e.g. "198 of 198 shown" — now lives OUTSIDE the scroll box, in its own strip
+    // under the framed board, so it is always visible even though the table itself scrolls through 198 rows.
     var totalX = aside ? DATAX.set_aside_size : liveX ? DATAX.live_size : DATAX.board_size;
-    var footX = h('tfoot', null, h('tr', null, h('td', { class: 'board-foot', colspan: colsX },
+    var footX = h('div', { class: 'board-stamp' },
       h('span', { class: 'bf-count' }, (totalX || rows.length) + ' of ' + (totalX || rows.length) + ' shown'),
-      h('span', { class: 'bf-note' }, 'sorted by ' + stateX.sort + (stateX.dir < 0 ? ' \u00b7 high to low' : ' \u00b7 low to high')))));
-    return h('div', { class: 'board' }, h('table', null, h('thead', null, headX), h('tbody', null, bodyX), footX));
+      h('span', { class: 'bf-note' }, 'sorted by ' + stateX.sort + (stateX.dir < 0 ? ' \u00b7 high to low' : ' \u00b7 low to high')));
+    return h('div', { class: 'board-wrap' },
+      h('div', { class: 'board' }, h('table', null, h('thead', null, headX), h('tbody', null, bodyX))),
+      footX);
   }
 
   // ---------------------------------------------------------------- drawer
