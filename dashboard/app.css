@@ -74,7 +74,7 @@ table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout:
 thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
 thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
 thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~75px; ten whole rows clear the frame without cropping the last */
+tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~74px; nine whole rows clear the frame without cropping the last */
 tbody td.num { white-space: nowrap; text-overflow: clip; } /* numeric cells stay on one line and never draw an ellipsis — the compact formats fit their column whole */
 /* The protocol-name cell is the one free-text column: it carries the name on its first line and the row's
    one-sentence farm plan on a second line beneath it. Both lines stay whole — the name never breaks mid-word. */
@@ -90,23 +90,32 @@ tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /
 .chips { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 3px; min-height: 0; overflow: hidden; } /* inline chain tags — one complete chain chip plus a "+n" chip, all on one line */
 .chips span { display: block; font-size: 12.5px; line-height: 1.2; color: var(--accent-2); background: #0f2138; border: 1px solid #172c46; border-radius: 5px; padding: 1px 6px; white-space: nowrap; flex: 0 0 auto; } /* one complete chain tag — a 2-4 char exchange code never shrinks into a one-letter stub */
 .chips span.more { color: var(--muted); background: transparent; } /* overflow count tag */
-/* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. The Protocol
-   column is widened (and the numeric columns set to the widest compact value they can print) so a cell never
-   has to trail off behind an ellipsis; the pixels come back from the low-information chips and counts. */
-.board th:nth-child(1), .board td:nth-child(1) { width: 2.5%; }
-.board th:nth-child(2), .board td:nth-child(2) { width: 29%; padding-right: 6px; }
-.board th:nth-child(3), .board td:nth-child(3) { width: 6%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(4), .board td:nth-child(4) { width: 5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(5), .board td:nth-child(5) { width: 6%; padding-left: 4px; padding-right: 4px; }
-.board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(7), .board td:nth-child(7) { width: 5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(8), .board td:nth-child(8) { width: 6%; padding-left: 4px; padding-right: 4px; } /* IMPLIED: the whole word, its one-decimal figure and the sort cue all fit */
-.board th:nth-child(9), .board td:nth-child(9) { width: 5%; padding-left: 4px; padding-right: 4px; }
-.board th:nth-child(10), .board td:nth-child(10) { width: 8%; padding-left: 3px; padding-right: 3px; } /* P25–P75: a four-digit span still reads complete */
-.board th:nth-child(11), .board td:nth-child(11) { width: 4%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(12), .board td:nth-child(12) { width: 5%; padding-left: 4px; padding-right: 5px; } /* Net$: bare integer, header carries the "$" */
-.board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; padding-left: 4px; padding-right: 5px; } /* Net/HR: bare rate, header word and unit whole */
-.board th:nth-child(14), .board td:nth-child(14) { width: 7.5%; padding-left: 5px; padding-right: 4px; } /* VERDICT: the "MARGINAL" badge whole */
+/* Board column widths (nine columns): fixed layout keeps every head and cell inside the frame at 1440px. The
+   category and chain no longer take their own columns — they fold into the Protocol sub-note — so the pixels
+   return to the value columns and the new FARM PLAN cell. A cell never trails off behind an ellipsis. */
+.board th:nth-child(1), .board td:nth-child(1) { width: 3%; }
+.board th:nth-child(2), .board td:nth-child(2) { width: 30%; padding-right: 6px; }
+.board th:nth-child(3), .board td:nth-child(3) { width: 8%; padding-left: 4px; padding-right: 4px; } /* TVL */
+.board th:nth-child(4), .board td:nth-child(4) { width: 7%; padding-left: 3px; padding-right: 3px; } /* NO TOK */
+.board th:nth-child(5), .board td:nth-child(5) { width: 9%; padding-left: 5px; padding-right: 5px; } /* IMPLIED: the whole word, its one-decimal figure and the sort cue all fit */
+.board th:nth-child(6), .board td:nth-child(6) { width: 11%; padding-left: 3px; padding-right: 3px; } /* P25–P75: a four-digit span still reads complete */
+.board th:nth-child(7), .board td:nth-child(7) { width: 7%; padding-left: 3px; padding-right: 3px; } /* ODDS */
+.board th:nth-child(8), .board td:nth-child(8) { width: 12%; padding-left: 4px; padding-right: 4px; } /* NET: the verdict word and its signed figure together */
+.board th:nth-child(9), .board td:nth-child(9) { width: 13%; padding-left: 4px; padding-right: 4px; } /* FARM PLAN: "Curated vault · Base" whole */
+/* The NET cell's single chip: the verdict carries its own colour and its net figure rides beside it. */
+.netchip { display: inline-block; font-family: var(--mono); font-size: 12.5px; letter-spacing: .02em; white-space: nowrap; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
+.netchip b { font-weight: 700; }
+.netchip.farm { color: var(--accent); border-color: #2b5c66; background: #10202b; }
+.netchip.marginal { color: var(--warn); border-color: #5c4a2b; background: #201a10; }
+.netchip.skip { color: var(--bad); border-color: #5c2b38; background: #201014; }
+/* The FARM PLAN cell: strategy and venue, tinted by the row's verdict. */
+.farmplan .fp { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.farmplan .fp.farm { color: var(--accent); }
+.farmplan .fp.marginal { color: var(--warn); }
+/* Board footer stamp: pinned to the frame's bottom, always visible, so the table ends on a stated line. */
+.board-foot { position: sticky; bottom: 0; background: var(--panel-2); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; letter-spacing: .04em; padding: 6px 8px; text-align: left; }
+.board-foot .bf-count { color: var(--ink); font-family: var(--mono); }
+.board-foot .bf-note { float: right; color: var(--dim); }
 .val { color: var(--accent); font-weight: 600; } /* headline value */
 .pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
 .ratio { color: var(--warn); } /* multiple tint */
@@ -166,11 +175,11 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .legend .ln { color: var(--accent-2); } /* line symbol */
 
 /* Out-of-sample items — compact stat boxes; the figure is styled like a KPI number. */
-.oos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; } /* two-up grid — tight so the six held-out figures fit the fixed panel */
-.oos-item { border: 1px solid var(--line); border-radius: 7px; background: #0a1526; padding: 2px 6px; } /* stat box — compressed padding */
-.oos-item .k-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); line-height: 1.05; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box label — whole words, no mid-word ellipsis */
-.oos-item .k-value { font-family: var(--mono); font-size: 18px; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; } /* box figure */
-.oos-item .k-sub { font-size: 10.5px; color: var(--muted); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
+.oos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; } /* two-up grid — tight so the six held-out figures fit the fixed panel */
+.oos-item { border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 1px 5px; } /* stat box — compressed padding */
+.oos-item .k-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); line-height: 1.0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box label — whole words, no mid-word ellipsis */
+.oos-item .k-value { font-family: var(--mono); font-size: 15px; color: var(--ink); line-height: 1.0; font-variant-numeric: tabular-nums; } /* box figure */
+.oos-item .k-sub { font-size: 9.5px; color: var(--muted); line-height: 1.0; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
 
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
 .walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
@@ -178,10 +187,10 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .walk th:first-child { text-align: left; } /* fold label column */
 .walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
-.walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
-.loo { display: flex; flex-direction: column; gap: 2px; } /* loo list */
-.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
+.walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 1px; } /* fold legend for the abbreviated heads */
+.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 1px 0 1px; } /* loo heading — trimmed so the full leave-one-out list clears the fixed panel */
+.loo { display: flex; flex-direction: column; gap: 1px; } /* loo list */
+.loo-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; line-height: 1.15; } /* loo row */
 .loo-name { color: var(--ink); min-width: 70px; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
 .badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
@@ -189,22 +198,22 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
 
 /* Calibration strip: a row of compact percentage cells, one per TVL tier. */
-.calstrip { margin-top: 3px; } /* wrapper */
-.calstrip-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 2px; } /* strip label */
-.calstrip-row { display: flex; gap: 6px; } /* tier row */
-.cal-cell { flex: 1; text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: #0a1526; } /* tier cell */
-.cal-cell b { display: block; font-family: var(--mono); font-size: 16px; color: var(--accent); line-height: 1.1; } /* tier percent */
-.cal-cell span { font-size: 10.5px; color: var(--muted); display: block; } /* tier name */
-.cal-cell em { font-size: 10px; color: var(--dim); font-style: normal; } /* tier n */
+.calstrip { margin-top: 1px; } /* wrapper */
+.calstrip-h { font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim); margin-bottom: 0; } /* strip label */
+.calstrip-row { display: flex; gap: 4px; } /* tier row */
+.cal-cell { flex: 1; text-align: center; border: 1px solid var(--line); border-radius: 5px; padding: 1px; background: #0a1526; } /* tier cell */
+.cal-cell b { display: block; font-family: var(--mono); font-size: 12px; color: var(--accent); line-height: 0.95; } /* tier percent */
+.cal-cell span { font-size: 9.5px; color: var(--muted); display: block; line-height: 1.0; } /* tier name */
+.cal-cell em { font-size: 9px; color: var(--dim); font-style: normal; line-height: 1.0; } /* tier n */
 
 /* Methodology strip inside the out-of-sample panel: one formula line, then a row of factor step chips. */
-.methodline { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; } /* compact strip — heading and chips share one wrapping row, total height about 30px */
-.methodline-h { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 0; flex: 0 0 auto; } /* strip heading — one compact line leading the chips */
-.methodline-p { font-size: 11px; color: var(--muted); line-height: 1.2; margin: 0; flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; } /* formula in words — wraps in full beside the heading, never truncated */
-.stepchips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; } /* factor chips — one wrapping row under the heading line */
-.stepchip { display: inline-flex; align-items: baseline; gap: 3px; border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 1px 5px; font-size: 11px; line-height: 1.1; } /* one compact step chip */
-.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; } /* factor name */
-.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 11.5px; } /* fitted value */
+.methodline { margin-top: 1px; border-top: 1px solid var(--line); padding-top: 1px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 5px; } /* compact strip — heading, one-line formula and chips, total height about 40px */
+.methodline-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--accent); margin: 0; flex: 0 0 auto; } /* strip heading — one compact line leading the formula */
+.methodline-p { font-size: 10.5px; color: var(--muted); line-height: 1.15; margin: 0; flex: 1 1 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; } /* formula in words — takes its own full line under the heading, wraps in full, never truncated */
+.stepchips { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: 1 1 100%; } /* factor chips — a fixed two-by-two grid under the heading, so the row count never varies */
+.stepchip { display: flex; align-items: baseline; gap: 3px; border: 1px solid var(--line); border-radius: 5px; background: #0a1526; padding: 0 4px; font-size: 10px; line-height: 1.05; min-width: 0; overflow: hidden; white-space: nowrap; } /* one compact step chip */
+.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; } /* factor name */
+.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 10px; overflow: hidden; text-overflow: ellipsis; } /* fitted value */
 
 /* Detail-view band strip: a thin track with a filled P25..P75 span and three tick marks. */
 .bstrip { position: relative; height: 16px; margin: 8px 0 2px; background: #0a1526; border: 1px solid var(--line); border-radius: 4px; } /* track */
@@ -223,10 +232,10 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 
 /* Verdict pills and the strip — sized like a chain chip, one colour per verdict. */
 .verdict-strip { display: flex; flex-wrap: wrap; gap: calc(var(--u) * .625); } /* strip of verdicts — wraps so the three counts stay fully readable inside the fixed panel */
-.verdict-pill { display: inline-flex; align-items: baseline; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 13px; } /* verdict chip */
+.verdict-pill { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 5px; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 13px; } /* verdict chip — its note drops to its own line rather than running off the card */
 .verdict-pill b { font-family: var(--mono); font-size: 16px; } /* chip count */
 .verdict-pill span { text-transform: uppercase; letter-spacing: .08em; } /* chip word */
-.verdict-pill em { color: var(--dim); font-style: normal; font-size: 12.5px; } /* chip note */
+.verdict-pill em { flex: 1 1 100%; color: var(--dim); font-style: normal; font-size: 12.5px; line-height: 1.2; } /* chip note — wraps in full under the chip word */
 .verdict-pill.farm { border-color: #2b5c66; } .verdict-pill.farm b, .verdict-pill.farm span { color: var(--accent); } /* farm tint */
 .verdict-pill.marginal { border-color: #5c4a2b; } .verdict-pill.marginal b, .verdict-pill.marginal span { color: var(--warn); } /* marginal tint */
 .verdict-pill.skip { border-color: #3a465c; } .verdict-pill.skip b, .verdict-pill.skip span { color: var(--dim); } /* skip tint */
@@ -258,3 +267,6 @@ thead th.sortable::before { content: "↕"; color: var(--dim); opacity: .45; mar
 thead th.sortable:hover::before { opacity: .8; } /* cue brightens */
 thead th.sortable.active::before { content: attr(data-cue); color: var(--accent); opacity: .9; } /* active direction, drawn in the cue slot so the header word keeps its width */
 thead th.num.sortable::before { float: left; } /* numeric column cue */
+
+/* Out-of-sample panel — a tighter note so the pricing strip and its note fit the fixed card whole. */
+.oos-note { font-size: 10.5px; line-height: 1.2; }

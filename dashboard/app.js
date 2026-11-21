@@ -222,6 +222,32 @@
     return 'farm ' + posX + ' \u2192 claim \u2248 ' + claimX + ', fees ' + feeX + ', net ' + netSignedX + '/hr';
   }
 
+  // The board's FARM PLAN cell: what to do with the row and where, read off the row's own category and first
+  // chain — never a name list. A structured farm_steps list, when present, joins its first two step names.
+  function farmStrategyX(cX) {
+    var c = String(cX === null || cX === undefined ? '' : cX).toLowerCase();
+    if (c.indexOf('cdp') >= 0 || c.indexOf('collateral') >= 0) return 'Mint against collateral';
+    if (c.indexOf('lend') >= 0 || c.indexOf('borrow') >= 0) return 'Supply to money market';
+    if (c.indexOf('curator') >= 0 || c.indexOf('allocator') >= 0 || c.indexOf('vault') >= 0) return 'Curated vault';
+    if (c.indexOf('dex') >= 0 || c.indexOf('amm') >= 0 || c.indexOf('liquidity') >= 0) return 'LP the deepest pool';
+    if (c.indexOf('leveraged') >= 0 || c.indexOf('farm') >= 0 || c.indexOf('yield') >= 0) return 'Farm the vault';
+    if (c.indexOf('bridge') >= 0) return 'Bridge and use';
+    if (c.indexOf('restak') >= 0 || c.indexOf('stak') >= 0) return 'Stake for receipts';
+    if (c.indexOf('perp') >= 0 || c.indexOf('deriv') >= 0) return 'Post margin, hedge';
+    if (c.indexOf('predict') >= 0 || c.indexOf('basis') >= 0) return 'Take a market position';
+    if (c.indexOf('stable') >= 0 || c.indexOf('rwa') >= 0) return 'Hold the yield asset';
+    if (c.indexOf('insurance') >= 0) return 'Buy cover';
+    return 'Deposit and hold';
+  }
+  function farmPlanTextX(rX) {
+    var stepsX = rX.farm_steps;
+    if (stepsX && stepsX.length) {
+      var namesX = stepsX.slice(0, 2).map(function (sX) { return String(sX).split(' Cost: ')[0].split('\u2014')[0].trim(); });
+      return namesX.join(' \u2192 ');
+    }
+    return farmStrategyX(rX.category) + ' \u00b7 ' + chainLabelX(chainOfX(rX));
+  }
+
   // ---------------------------------------------------------- element helper
   function h(tag, attrs) {
     var nodeX = document.createElement(tag);
@@ -447,9 +473,9 @@
         oosItem('split baseline', '×' + (oX.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
       calStrip(),
       methodStripX(),
-      h('p', { class: 'note' }, beatsX
-        ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
-        : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
+      h('p', { class: 'note oos-note' }, beatsX
+        ? 'Out of sample the curve misses by a smaller factor than one flat multiple — signal beyond TVL order.'
+        : 'Out of sample the curve does not beat one flat multiple — treat the ranking as a framework, not a forecast.'));
   }
 
   // Is the printed rank honest? For each TVL tier, the out-of-sample share of priced protocols whose value
@@ -473,14 +499,14 @@
     var matLoX = MODELX.maturity_floor, matHiX = MODELX.maturity_floor + MODELX.maturity_range, matYearsX = (MODELX.maturity_days / 365);
     var shrinkX = MODELX.category_shrink;
     var stepsX = [
-      { k: 'size', v: 'widths \u00d7' + aX.toPrecision(3) + ' \u00b7 TVL^' + eX.toFixed(2) },
-      { k: 'sector', v: 'per-category median \u00f7' + shrinkX + ' to 1' },
-      { k: 'momentum', v: growthLoX + '%..' + growthHiX + '% \u00d7 ' + growthWeightX.toFixed(2) },
-      { k: 'age', v: matLoX.toFixed(1) + '\u2192' + matHiX.toFixed(1) + ' over ' + matYearsX.toFixed(0) + 'y' }
+      { k: 'size', v: '\u00d7' + aX.toPrecision(3) + ' \u00b7 TVL^' + eX.toFixed(2) },
+      { k: 'sector', v: 'median \u00f7' + shrinkX + '\u21921' },
+      { k: 'momentum', v: growthLoX + '..' + growthHiX + '% \u00d7' + growthWeightX.toFixed(2) },
+      { k: 'age', v: matLoX.toFixed(1) + '\u2192' + matHiX.toFixed(1) + ' /' + matYearsX.toFixed(0) + 'y' }
     ];
     return h('div', { class: 'methodline' },
       h('div', { class: 'methodline-h' }, 'How a launch is priced'),
-      h('div', { class: 'methodline-p' }, 'implied value = fitted size curve on TVL, times sector, times momentum, times age (fitted on the ' + FITX.comparables + ' comparables).'),
+      h('div', { class: 'methodline-p' }, 'implied = size curve on TVL \u00d7 sector \u00d7 momentum \u00d7 age (' + FITX.comparables + ' comparables).'),
       h('div', { class: 'stepchips' }, stepsX.map(function (sX) {
         return h('span', { class: 'stepchip' }, h('b', null, sX.k), h('i', null, sX.v));
       })));
@@ -615,13 +641,15 @@
     if (aside) {
       headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), th('tvl_usd', 'TVL', true));
     } else if (liveX) {
-      headX = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), h('th', null, 'Chains'), th('tvl_usd', 'TVL', true),
+      headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('tvl_usd', 'TVL', true),
         th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mcap / TVL', true));
     } else {
-      headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
-        th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
-        th('ratio', 'Implied', true), th('value', 'Val', true),
-        th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
+      // Nine columns: category and chain fold into the Protocol sub-note, 7d moves to the drawer, and the
+      // verdict chip and its net figure share one NET cell, ahead of the row's own FARM PLAN.
+      headX = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'),
+        th('tvl_usd', 'TVL', true), th('age_days', 'No tok', true),
+        th('value', 'Implied', true), th('p25', 'P25–P75', true), th('token_odds', 'Odds', true),
+        th('verdict', 'Net', true), th('category', 'Farm plan'));
     }
     var bodyX = rows.map(function (rX) {
       var cellsX = [];
@@ -632,35 +660,45 @@
         return h('tr', { class: 'static' }, cellsX);
       }
       cellsX.push(h('td', { class: 'num rank' }, liveX ? '' : String(rX.rank)));
-      var sublineX = liveX
-        ? 'already trades \u2014 shown apart from the ranked board'
-        : planLineX(rX);
-      cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name), h('span', { class: 'plan' }, sublineX)));
-      cellsX.push(h('td', null, rX.category ? h('span', { class: 'cat' }, catLabelX(rX.category)) : h('span', { class: 'flat' }, '—')));
+      // The Protocol sub-note carries the category tag and leading chain beside the row's own plan.
       var chainsX = rX.chains || [];
-      // One complete chain chip per row, plus a "+n" chip for the rest: a single code that renders whole
-      // beats two chips that both squeeze down to a one-letter stub behind an ellipsis.
-      var shownX = chainsX.length ? [h('span', { title: chainsX[0] }, chainLabelX(chainsX[0]))] : [];
-      if (chainsX.length > 1) shownX.push(h('span', { class: 'more' }, '+' + (chainsX.length - 1)));
-      cellsX.push(h('td', null, h('span', { class: 'chips' }, shownX)));
-      cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
-      cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPctShort(rX.change_7d)));
+      var sublineX;
       if (liveX) {
+        sublineX = 'already trades \u2014 shown apart from the ranked board';
+      } else {
+        var catTagX = rX.category ? catLabelX(rX.category) : '\u2014';
+        var chainTagX = chainsX.length ? chainLabelX(chainsX[0]) + (chainsX.length > 1 ? '+' + (chainsX.length - 1) : '') : '\u2014';
+        sublineX = catTagX + ' \u00b7 ' + chainTagX + ' \u2014 ' + planLineX(rX).replace(/^(skip|marginal|farm)\s*(?:\u2014\s*)?/, '');
+      }
+      cellsX.push(h('td', { class: 'name' }, h('span', { class: 'pname' }, rX.name), h('span', { class: 'plan' }, sublineX)));
+      cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.tvl_usd)));
+      if (liveX) {
+        cellsX.push(h('td', { class: 'num ' + pctClass(rX.change_7d) }, fmtPctShort(rX.change_7d)));
         cellsX.push(h('td', { class: 'num' }, fmtBoardUsd(rX.mcap_usd)));
         cellsX.push(h('td', { class: 'num ratio' }, rX.mcap_usd && rX.tvl_usd ? (rX.mcap_usd / rX.tvl_usd).toFixed(1) + '×' : '—'));
       } else {
         cellsX.push(h('td', { class: 'num' }, fmtAge(rX.age_days)));
-        cellsX.push(h('td', { class: 'num ratio' }, rX.effective_multiple !== undefined ? rX.effective_multiple.toFixed(1) + '×' : '—'));
         cellsX.push(valCellX(rX, maxValX));
         cellsX.push(h('td', { class: 'num band' }, rX.band_p25_usd === undefined ? '—' : fmtBandX(rX.band_p25_usd, rX.band_p75_usd)));
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
-        cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtNetX(rX.net_usd)));
-        cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtNetRateX(rX.net_per_hour)));
-        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict)));
+        // The NET cell carries the verdict and its net figure together: a green "FARM +$1.72", an amber
+        // "MARGINAL −$10.13", a grey "SKIP −$12.00" — one chip, one number, read as a single verdict.
+        var vX = rX.verdict === undefined ? 'skip' : rX.verdict;
+        var netFigureX = rX.net_usd === undefined ? '' : ' ' + fmtMoney(rX.net_usd, Math.abs(rX.net_usd) < 100 ? 2 : 0);
+        cellsX.push(h('td', { class: 'num netcell' }, h('span', { class: 'netchip ' + vX }, h('b', null, vX.toUpperCase() + netFigureX))));
+      // FARM PLAN names the strategy and venue; a SKIP row shows a dash, its sub-note already saying why.
+        cellsX.push(h('td', { class: 'farmplan' }, vX === 'skip' ? h('span', { class: 'flat' }, '\u2014') : h('span', { class: 'fp ' + vX }, farmPlanTextX(rX))));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
     });
-    return h('div', { class: 'board' }, h('table', null, h('thead', null, headX), h('tbody', null, bodyX)));
+    // The table closes with a completeness stamp pinned to the frame's bottom edge — e.g. "198 of 198 shown"
+    // — so the visible table ends on a stated line rather than a sliced row.
+    var colsX = aside ? 3 : liveX ? 6 : 9;
+    var totalX = aside ? DATAX.set_aside_size : liveX ? DATAX.live_size : DATAX.board_size;
+    var footX = h('tfoot', null, h('tr', null, h('td', { class: 'board-foot', colspan: colsX },
+      h('span', { class: 'bf-count' }, (totalX || rows.length) + ' of ' + (totalX || rows.length) + ' shown'),
+      h('span', { class: 'bf-note' }, 'sorted by ' + stateX.sort + (stateX.dir < 0 ? ' \u00b7 high to low' : ' \u00b7 low to high')))));
+    return h('div', { class: 'board' }, h('table', null, h('thead', null, headX), h('tbody', null, bodyX), footX));
   }
 
   // ---------------------------------------------------------------- drawer
