@@ -144,6 +144,7 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); overflow-wrap: normal; word-break: normal; hyphens: none; } /* card header text — wraps between whole words ("OUT OF" / "SAMPLE"), never cutting one in half */
 .card-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; line-height: 1.25; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card subheading — wraps between whole words rather than clipping one mid-word */
 .card .note { color: var(--muted); font-size: 11.5px; line-height: 1.3; margin: 3px 0 0; } /* card note */
+.range-honest { color: var(--dim); font-size: 11.5px; line-height: 1.3; margin: 3px 0 0; } /* printed-range honesty sub-line — small type, sits under the miss strip without growing the fixed-height panel */
 
 /* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
 .acct-card { grid-column: 1 / -1; padding: calc(var(--u) * .5) calc(var(--u) * 1.125); } /* full-width accounting strip */
@@ -174,19 +175,20 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 
 /* Walk-forward fold table and the per-feature leave-one-out strip. */
 .walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
-.walk th { text-align: right; padding: 2px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head */
+.walk th { text-align: right; padding: 1px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head — 1px row padding returns the few px the survived sub-line needs, keeping the last term row inside the fixed panel */
 .walk th:first-child { text-align: left; } /* fold label column */
-.walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
+.walk td { padding: 1px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell — trimmed row padding, matches the head so the fold grid stays compact */
 .walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
 .walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
-.loo { display: flex; flex-direction: column; gap: 2px; } /* loo list */
+.loo-survived { color: var(--muted); font-size: 11.5px; line-height: 1.2; margin: 1px 0 0; } /* panel sub-line — small type so it sits under the header without growing the fixed-height card */
+.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .375) 0 calc(var(--u) * .25); } /* loo heading — tightened so the trim below the fold grid and above the term rows stays short */
+.loo { display: flex; flex-direction: column; gap: 1px; } /* loo list */
 .loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
 .loo-name { color: var(--ink); min-width: 70px; } /* feature name */
 .loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
 .badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
 .badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
-.badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
+.badge.dropped { color: #d98a92; border-color: #5c333b; } /* tested-but-not-kept term — muted red, distinct from the amber warn tint */
 
 /* Calibration strip: a row of compact percentage cells, one per TVL tier. */
 .calstrip { margin-top: 3px; } /* wrapper */
@@ -239,6 +241,11 @@ footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; b
 .badge.verdict-farm { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--accent); border: 1px solid #2b5c66; background: #10202b; padding: 3px 10px; } /* farm badge */
 .badge.verdict-marginal { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--warn); border: 1px solid #5c4a2b; background: #201a10; padding: 3px 10px; } /* marginal badge */
 .badge.verdict-skip { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--dim); border: 1px solid #3a465c; background: #131a26; padding: 3px 10px; } /* skip badge */
+/* The verdict cell stacks its badge over one small fee line. The stack stays inside the two-line row height
+   the name cell already sets, so the column's height never changes; the fee line clips at the cell edge
+   rather than widening the column or pushing the badge off-centre. */
+.verdict-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.fee-line { font-family: var(--mono); font-size: 10px; line-height: 1.1; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; } /* fee arithmetic — small and muted so it rides under the badge */
 
 /* Verdict filter chips — subdued bordered toggles; the active one reads like the active tab. */
 .verdict-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; } /* chip row */

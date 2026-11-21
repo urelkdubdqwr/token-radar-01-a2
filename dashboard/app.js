@@ -62,6 +62,18 @@
     var sX = trimZeroX(Math.abs(nX));
     return (nX < 0 ? '\u2212' : '') + sX;
   }
+  // The VERDICT cell's fee arithmetic, worked from the row's own netting numbers: the modelled airdrop drop
+  // (`alloc_usd`) minus the fees the plan pays (`est_gas_usd`), which together are exactly what nets to
+  // `net_usd`. Rounded whole dollars keep it short enough to sit under the badge; a row missing either figure
+  // returns null so the cell prints the badge alone rather than a half-stated subtraction.
+  function feeLineX(rX) {
+    var dropX = rX.alloc_usd, feesX = rX.est_gas_usd;
+    if (dropX === null || dropX === undefined || !isFinite(dropX)) return null;
+    if (feesX === null || feesX === undefined || !isFinite(feesX)) return null;
+    var dropTxtX = '$' + Math.round(dropX).toLocaleString('en-US');
+    var feeTxtX = '$' + Math.round(feesX).toLocaleString('en-US');
+    return dropTxtX + ' drop \u2212 ' + feeTxtX + ' fees';
+  } // c
   // Board TVL: the same magnitude ladder as fmtShortUsdX, so a headline size reads whole in a narrow column.
   function fmtBoardUsd(nX) { return fmtShortUsdX(nX); }
   // A one-place percentage for the board's seven-day growth cell, so "+24.1%" never collapses to "+24.1...".
@@ -276,12 +288,18 @@
   function kpis() {
     var pX = DATAX.pre_token_size, liveX = DATAX.live_size, aside = DATAX.set_aside_size;
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
+    // Two cards read straight off the evidence the panels below compute: the share of traded caps that land
+    // inside the model's printed P25–P75 band, and the leave-one-out terms that survived their own test. Cards
+    // keep their slot, size and styling — only the figure and its caption change — so the strip is unchanged.
+    var honorX = rangeHonestyStatsX();
+    var survivedX = termsSurvivedX();
+    var rangeHonestX = honorX && honorX.withinBand !== null ? honorX.withinBand.toFixed(0) + '%' : '—';
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
       kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
       kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
-      kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
-      kpi(pX, 'pre-token', aside + ' set aside', ''),
+      kpi(rangeHonestX, 'RANGE HONEST', 'traded caps inside the printed P25–P75 band', 'accent'),
+      kpi(survivedX.kept + '/' + survivedX.count, 'TERMS SURVIVED', 'leave-one-out terms that beat their baseline', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
       oddsKpi());
   } // c
@@ -347,6 +365,19 @@
   // Walk-forward panel: five sequential folds the curve never trained on, each graded against a flat
   // multiple, then a per-feature leave-one-out table. A feature is called out as "tested, not kept" when
   // dropping it does not worsen the held-out miss, i.e. it earns nothing.
+  // The term tally is one shared rule for the whole panel: each leave-one-out term is put through both
+  // anchored tests this panel prints — the fitted curve's pooled miss and the flat baseline — and a term is
+  // kept only when its dropped miss is no worse than either. Both anchors are read off the walk-forward
+  // numbers themselves, never retyped, and the surviving count feeds the panel sub-line and the KPI card.
+  function termsSurvivedX() {
+    var wX = FITX.walk_forward || {};
+    var fullX = wX.miss || 0, flatX = wX.flat_miss || 0;
+    var termsX = (FITX.feature_loo || []).map(function (fX) {
+      return { feature: fX.feature, miss: fX.miss, kept: fX.miss <= fullX + 1e-9 && fX.miss <= flatX + 1e-9 };
+    });
+    var keptX = termsX.filter(function (tX) { return tX.kept; }).length;
+    return { terms: termsX, kept: keptX, count: termsX.length };
+  } // c
   function walkCard() {
     var wX = FITX.walk_forward || { folds: [], miss: 0, flat_miss: 0, tested: 0 };
     var rowsX = (wX.folds || []).map(function (fX) {
@@ -359,13 +390,18 @@
     });
     var headX = h('tr', null, h('th', null, 'Fold'), h('th', { class: 'num' }, 'Train'), h('th', { class: 'num' }, 'Held out'),
       h('th', { class: 'num' }, 'Curve'), h('th', { class: 'num' }, 'Flat'));
-    var looX = (FITX.feature_loo || []).map(function (fX) {
+    // Each term row carries its own verdict from the shared rule above: a term is badged "kept" only when
+    // its leave-one-out miss clears both anchored misses the panel prints (the fitted curve's pooled miss and
+    // the flat baseline); otherwise it is "tested, not kept". The same terms back the sub-line and the tally.
+    var survivedX = termsSurvivedX();
+    var looX = survivedX.terms.map(function (tX) {
       return h('div', { class: 'loo-row' },
-        h('span', { class: 'loo-name' }, fX.feature),
-        h('span', { class: 'loo-miss' }, '×' + fX.miss.toFixed(2)),
-        h('span', { class: 'badge ' + (fX.kept ? 'kept' : 'dropped') }, fX.kept ? 'kept, earns its place' : 'tested, not kept'));
+        h('span', { class: 'loo-name' }, tX.feature),
+        h('span', { class: 'loo-miss' }, '×' + tX.miss.toFixed(2)),
+        h('span', { class: 'badge ' + (tX.kept ? 'kept' : 'dropped') }, tX.kept ? 'kept' : 'tested, not kept'));
     });
     return card('Walk-forward validation', 'graded on the fold it never saw',
+      h('p', { class: 'loo-survived' }, 'terms that survived both tests: ' + survivedX.kept + ' of ' + survivedX.count),
       h('div', null,
         h('table', { class: 'walk' }, h('thead', null, headX), h('tbody', null, rowsX)),
         h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
@@ -395,7 +431,10 @@
     x0X -= xpadX; x1 += xpadX; y0 -= ypadX; y1 += ypadX;
     var sxX = function (v) { return padL + (v - x0X) / (x1 - x0X) * (WX - padL - padR); };
     var syX = function (v) { return H - padB - (v - y0) / (y1 - y0) * (H - padT - padB); };
-    var sX = svg('svg', { viewBox: '0 0 ' + WX + ' ' + H, width: '100%', height: 'auto', role: 'img', 'aria-label': 'log-log scatter of market cap versus TVL with the fitted curve' });
+    // No height attribute: an SVG viewport does not accept "auto" and the browser flags it, while the CSS
+    // (.scatter-wrap svg { height: 100% }) already stretches the plot to its frame — so dropping it is a
+    // pixel-for-pixel no-op that clears the one console warning the page used to raise.
+    var sX = svg('svg', { viewBox: '0 0 ' + WX + ' ' + H, width: '100%', role: 'img', 'aria-label': 'log-log scatter of market cap versus TVL with the fitted curve' });
     // axes
     sX.appendChild(svg('line', { x1: padL, y1: H - padB, x2: WX - padR, y2: H - padB, stroke: '#2a3f5c', 'stroke-width': 1 }));
     sX.appendChild(svg('line', { x1: padL, y1: padT, x2: padL, y2: H - padB, stroke: '#2a3f5c', 'stroke-width': 1 }));
@@ -437,6 +476,7 @@
     var oX = (FITX.out_of_sample) || {};
     var wX = (FITX.walk_forward) || {};
     var beatsX = (oX.miss_median || 0) < (oX.flat_miss_median || 0) && (oX.split_miss || 0) < (oX.split_flat_miss || 0);
+    var honestX = rangeHonestyX();
     return card('Out of sample', 'the curve, tested on protocols it did not fit',
       h('div', { class: 'oos-grid' },
         oosItem('in-sample miss', '×' + (FITX.median_abs_error || 0).toFixed(2), 'the fitted curve, itself'),
@@ -447,10 +487,48 @@
         oosItem('split baseline', '×' + (oX.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
       calStrip(),
       methodStripX(),
+      honestX ? h('p', { class: 'range-honest' }, 'printed range honest: ' + honestX) : null,
       h('p', { class: 'note' }, beatsX
         ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
         : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
   }
+
+  // The raw counts behind the range-honesty line: how many traded tokens carry a cap to test, how many land
+  // within 3x of the model's implied value (P), how many land inside the printed P25–P75 band (Q), and the
+  // band multipliers themselves read off the ranked rows. Returns null when nothing can be divided by.
+  function rangeHonestyStatsX() {
+    var nX = 0, in3X = 0, inBandX = 0, bandX = null;
+    (DATAX.rows || []).some(function (rX) {
+      if (rX.implied_value_usd > 0 && rX.band_p25_usd !== undefined && rX.band_p75_usd !== undefined) {
+        bandX = { lo: rX.band_p25_usd / rX.implied_value_usd, hi: rX.band_p75_usd / rX.implied_value_usd };
+        return true;
+      }
+      return false;
+    });
+    (DATAX.live || []).forEach(function (lX) {
+      if (!(lX.mcap_usd > 0) || !(lX.tvl_usd > 0)) return;
+      var impliedX = impliedOf(lX);
+      if (!(impliedX > 0)) return;
+      var ratioX = lX.mcap_usd / impliedX;
+      nX++;
+      if (ratioX >= 1 / 3 && ratioX <= 3) in3X++;
+      if (bandX && ratioX >= bandX.lo && ratioX <= bandX.hi) inBandX++;
+    });
+    if (nX === 0) return null;
+    return { n: nX, within3: in3X / nX * 100, withinBand: bandX ? inBandX / nX * 100 : null };
+  } // c
+  // The range-honesty sentence under the out-of-sample miss lines: over the protocols that already trade,
+  // compare each market cap with the value this page's own formula would print for it — the within-3x share
+  // (P) and the share landing inside the printed P25–P75 band (Q). Both are read off the loaded board (each
+  // token's cap and TVL, plus the band multipliers the ranked rows themselves carry); a share that cannot be
+  // computed is dropped rather than guessed, so the line states only what the data supports.
+  function rangeHonestyX() {
+    var sX = rangeHonestyStatsX();
+    if (!sX) return null;
+    var partsX = [sX.within3.toFixed(0) + '% within ×3'];
+    if (sX.withinBand !== null) partsX.push(sX.withinBand.toFixed(0) + '% within P25–P75');
+    return partsX.join(', ');
+  } // c
 
   // Is the printed rank honest? For each TVL tier, the out-of-sample share of priced protocols whose value
   // the curve lands within a factor of two of. Compact strip of percentages.
@@ -656,7 +734,13 @@
         cellsX.push(h('td', { class: 'num odds' }, rX.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(rX.token_odds) }, (rX.token_odds * 100).toFixed(0) + '%')));
         cellsX.push(h('td', { class: 'num netline' }, rX.net_usd === undefined ? '—' : fmtNetX(rX.net_usd)));
         cellsX.push(h('td', { class: 'num' }, rX.net_per_hour === undefined ? '—' : fmtNetRateX(rX.net_per_hour)));
-        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict)));
+        // The verdict badge, then one small muted line stating its fee arithmetic: the drop the plan models
+        // minus the fees it pays. Both figures come off the row itself; a row carrying no fee figures prints
+        // the badge alone, and the line is small enough to ride inside the cell without changing its height.
+        var feeX = feeLineX(rX);
+        cellsX.push(h('td', null, rX.verdict === undefined ? '—' : h('div', { class: 'verdict-cell' },
+          h('span', { class: 'badge verdict-' + rX.verdict }, rX.verdict),
+          feeX ? h('span', { class: 'fee-line' }, feeX) : null)));
       }
       return h('tr', { class: stateX.selected && stateX.selected.slug === rX.slug ? 'sel' : '', onclick: function () { stateX.selected = rX; paint(); openDrawer(); } }, cellsX);
     });
