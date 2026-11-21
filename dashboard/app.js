@@ -278,8 +278,8 @@
     var fitX = 'TVL^' + FITX.elasticity.toFixed(2);
     return h('section', { class: 'kpis' },
       kpi(DATAX.watchlist_size + ' / ' + DATAX.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + FITX.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
-      kpi(FITX.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
+      kpi('\u00d7' + FITX.elasticity.toFixed(2), 'size elasticity', 'held-out miss \u00d7' + (FITX.median_abs_error || 0).toFixed(2), '', true),
+      kpi(FITX.comparables, 'comps fit', 'priced behind the curve', '', true),
       kpi('×' + FITX.err_lo.toFixed(2) + '–×' + FITX.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
       kpi(pX, 'pre-token', aside + ' set aside', ''),
       kpi(liveX, 'tokens', 'shown apart, not ranked', ''),
@@ -293,7 +293,7 @@
     var brierX = oX.brier || 0, baseX = oX.base_rate || 0;
     var baseBrierX = baseX * (1 - baseX);
     var beatsX = brierX < baseBrierX;
-    return kpi(brierX.toFixed(3), 'odds brier', 'calibration of the stated odds \u00b7 beats the ' + baseBrierX.toFixed(3) + ' base-rate line, held out', beatsX ? 'ok' : 'accent', true);
+    return kpi(brierX.toFixed(3), 'odds brier', 'beats the ' + baseBrierX.toFixed(3) + ' base line', beatsX ? 'ok' : 'accent', true);
   } // c
   function kpi(value, label, sub, cls, hero) {
     // The figure leads its caption; the caption stacks its complete words on up to two lines so a long label
