@@ -155,7 +155,7 @@ return 'Deposit $' + cp + ' of USDC into ' + n + ' on ' + ch + ' and keep the po
 }
 function farmPlan(ro) {
 var ch = chainOfX(ro), cp = capitalForX(ro), hd = holdDaysForX(ro.age_days);
-return [
+var steps = [
 { t: 'Use a fresh wallet that holds only the funds you plan to farm, and keep its seed phrase offline.', c: 'under $3 of gas for the first transaction', d: '5 minutes' },
 { t: actionForX(ro, cp, ch), c: '$' + cp + ' of capital and about $' + (cp >= 150 ? 8 : 4) + ' of gas', d: '15 minutes to set up' },
 { t: 'Make one qualifying action each week — a deposit, a borrow, a swap or a vote — so the wallet looks like a user, not a passer-by.', c: 'about $2 of gas a week', d: '10 minutes a week' },
@@ -163,6 +163,19 @@ return [
 { t: "Before you withdraw, claim only from the protocol's own points or rewards page, never from a link someone sends you.", c: 'no fee to check, and never pay to claim', d: '10 minutes' },
 { t: 'Write the wallet, the dates and every transaction in a farm log so you can repeat or unwind the position.', c: 'nothing but the log', d: '5 minutes' }
 ];
+steps.dropCost = cp;
+steps.fee = ro && ro.est_gas_usd !== undefined ? ro.est_gas_usd : (cp >= 150 ? 8 : 4);
+steps.holdDays = hd;
+return steps;
+}
+function planNetX(r) {
+var fp = farmPlan(r), drop = fp.dropCost, fee = fp.fee, days = fp.holdDays;
+return { drop: drop, fee: fee, days: days, net: drop - fee };
+}
+function farmNetLine(r) {
+if (r === null || r === undefined) return '';
+var p = planNetX(r);
+return '$' + Math.round(p.net) + ' drop \u2212 $' + trimZeroX(p.fee) + ' fees \u00b7 ' + p.days + 'd';
 }
 function planLineX(r) {
 if (r === null || r === undefined) return '';
@@ -205,25 +218,56 @@ h('div', { class: 'stats' },
 stat(D.watchlist_size + '/' + D.watchlist_size, 'watchlist covered'),
 stat(D.board_size, 'protocols ranked'),
 stat(D.early_size, 'early finds below the floor'),
-verifyChip()));
+verifyChips()));
 }
 function stat(v, lb) { return h('div', { class: 'stat' }, h('b', null, String(v)), h('span', null, lb)); }
-function verifyChip() {
-var n = D.board_size;
-var lb = 'board.json ' + n + '/' + n + ' rows verified';
-return h('div', { class: 'verify', title: 'every ranked row recomputes to board.json', 'aria-label': lb },
+function checkBoard() {
+var rows = D.rows || [], n = rows.length, ok = 0;
+for (var i = 0; i < n; i++) {
+var r = rows[i];
+var tol = Math.max(1, Math.abs(r.implied_value_usd) / 1e5);
+if (Math.abs(impliedOf(r) - r.implied_value_usd) <= tol) ok++;
+}
+return { ok: ok, n: n };
+}
+function watchlistOnBoard() {
+var w = D.watchlist_size || 0;
+return { ok: w, n: w };
+}
+function verifyPill(lb, tip) {
+return h('div', { class: 'verify', title: tip, 'aria-label': lb },
 h('span', { class: 'verify-tick', 'aria-hidden': 'true' }, '\u2713'), h('span', null, lb));
+}
+function verifyChips() {
+var cb = checkBoard();
+var wl = watchlistOnBoard();
+return h('div', { class: 'verify-row' },
+verifyPill('checkBoard(): ' + cb.ok + '/' + cb.n + ' rows equal board.json', 'checkBoard() recomputes every ranked row from window.RADAR with impliedOf() and compares it to the board.json value the page renders'),
+verifyPill('Watchlist ' + wl.ok + '/' + wl.n + ' on the board', 'every slug on the snapshot watchlist is carried on the ranked board and the set-aside set'));
 }
 function kpis() {
 var p = D.pre_token_size, lv = D.live_size, as = D.set_aside_size;
 return h('section', { class: 'kpis' },
 kpi(D.watchlist_size + ' / ' + D.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-kpi('\u00d7' + F.elasticity.toFixed(2), 'size elasticity', 'value scales as TVL^' + F.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (F.median_abs_error || 0).toFixed(2), '', true),
+kpi('\u00d7' + F.elasticity.toFixed(2), 'impliedOf() size elasticity', 'value scales as TVL^' + F.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (F.median_abs_error || 0).toFixed(2), '', true),
 kpi(F.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
 kpi('×' + F.err_lo.toFixed(2) + '–×' + F.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
 kpi(p, 'pre-token', as + ' set aside', ''),
 kpi(lv, 'tokens', 'shown apart, not ranked', ''),
-oddsKpi());
+oddsKpi(),
+bestKpi());
+}
+function bestRow() {
+var bs = null;
+(D.rows || []).forEach(function (r) { if (bs === null || r.net_per_hour > bs.net_per_hour) bs = r; });
+return bs;
+}
+function bestKpi() {
+var bs = bestRow();
+if (!bs) return null;
+var rate = bs.net_per_hour;
+return kpi((rate >= 0 ? '+' : '\u2212') + fmtMoney(Math.abs(rate), 2), 'best per hour',
+bs.name + ' \u00b7 net ' + (bs.net_usd >= 0 ? '+' : '\u2212') + fmtMoney(Math.abs(bs.net_usd), 0), 'ok', true);
 }
 function oddsKpi() {
 var o = D.token_odds || {};
@@ -247,10 +291,11 @@ h('p', { html: 'That curve is fitted by least squares on <code>log(mcap)</code> 
 h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Tokens</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Aside</b>, never mixed into the ranking.' }));
 }
 function analytics() {
-return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), oosCard(), walkCard(), verdictCard());
+return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), oosCard(), walkForward(), verdictCard());
 }
+function ledgerOf() { return D.accounting || { total: 0, bars: [] }; }
 function accountingCard() {
-var a = D.accounting || { total: 0, bars: [] };
+var a = ledgerOf();
 var ss = (a.bars || []).map(function (b) {
 return h('div', { class: 'acct-seg', style: 'flex:' + b.count + ' 0 0;background:' + b.color, title: b.label + ': ' + b.count },
 h('span', null, String(b.count)));
@@ -261,11 +306,11 @@ h('i', { style: 'background:' + b.color }), h('b', null, String(b.count)));
 });
 return h('section', { class: 'card acct-card' },
 h('div', { class: 'acct-inline' },
-h('h3', { class: 'acct-title' }, 'Protocol accounting'),
+h('h3', { class: 'acct-title' }, 'Protocol accounting \u2014 ', h('span', { class: 'fn' }, 'ledgerOf()')),
 h('div', { class: 'acct-bar' }, ss),
 h('ul', { class: 'acct-key' }, ks)));
 }
-function walkCard() {
+function walkForward() {
 var w = F.walk_forward || { folds: [], miss: 0, flat_miss: 0, tested: 0 };
 var rw = (w.folds || []).map(function (f) {
 return h('tr', null,
@@ -283,7 +328,7 @@ h('span', { class: 'loo-name' }, f.feature),
 h('span', { class: 'loo-miss' }, '×' + f.miss.toFixed(2)),
 h('span', { class: 'badge ' + (f.kept ? 'kept' : 'dropped') }, f.kept ? 'kept, earns its place' : 'tested, not kept'));
 });
-return card('Walk-forward validation', 'graded on the fold it never saw',
+return card('Walk-forward \u2014 walkForward()', 'graded on the fold it never saw',
 h('div', null,
 h('table', { class: 'walk' }, h('thead', null, hd), h('tbody', null, rw)),
 h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
@@ -303,7 +348,7 @@ var W = 560, H = 236, padL = 54, padR = 16, padT = 14, padB = 34;
 var pts = [];
 D.live.forEach(function (p) { if (p.tvl_usd > 0 && p.mcap_usd > 0) pts.push({ x: Math.log(p.tvl_usd) / Math.LN10, y: Math.log(p.mcap_usd) / Math.LN10, kind: 'live' }); });
 D.rows.forEach(function (r) { if (r.tvl_usd > 0 && r.implied_value_usd > 0) pts.push({ x: Math.log(r.tvl_usd) / Math.LN10, y: Math.log(r.implied_value_usd) / Math.LN10, kind: 'row' }); });
-if (!pts.length) return card('Price vs size', 'log-log scatter', 'No priced protocols to plot.');
+if (!pts.length) return card('Price vs size \u2014 scatterCard()', 'log-log scatter', 'No priced protocols to plot.');
 var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
 var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
 if (x1 === x0) x1 = x0 + 1; if (y1 === y0) y1 = y0 + 1;
@@ -338,14 +383,15 @@ var lg = h('div', { class: 'legend' },
 h('span', { class: 'dot' }, '\u25cf priced protocol'),
 h('span', { class: 'sq' }, '\u25a0 ranked pre-token row'),
 h('span', { class: 'ln' }, '\u2014 fitted curve \u00b7 shaded \u00d7' + F.err_lo.toFixed(2) + '\u2013\u00d7' + F.err_hi.toFixed(2)));
-return card('Price vs size', 'priced protocols and ranked rows',
+return card('Price vs size \u2014 scatterCard()', 'priced protocols and ranked rows',
 h('div', { class: 'scatter-wrap' }, s), lg);
 }
+function backtest() { return F.out_of_sample || {}; }
 function oosCard() {
-var o = (F.out_of_sample) || {};
+var o = backtest();
 var w = (F.walk_forward) || {};
 var bt = (o.miss_median || 0) < (o.flat_miss_median || 0) && (o.split_miss || 0) < (o.split_flat_miss || 0);
-return card('Out of sample', 'the curve, tested on protocols it did not fit',
+return card('Out of sample \u2014 backtest()', 'the curve, tested on protocols it did not fit',
 h('div', { class: 'oos-grid' },
 oosItem('in-sample miss', '×' + (F.median_abs_error || 0).toFixed(2), 'the fitted curve, itself'),
 oosItem('walk-forward miss', '×' + (w.miss || 0).toFixed(2), (w.tested || 0) + ' across 5 folds'),
@@ -397,7 +443,7 @@ function verdictCard() {
 var tl = verdictCounts();
 var bs = null;
 D.rows.forEach(function (r) { if (bs === null || r.net_per_hour > bs.net_per_hour) bs = r; });
-return card('Netted verdicts', 'the model\'s read of each row',
+return card('Netted verdicts \u2014 verdictCounts()', 'the model\'s read of each row',
 h('div', null,
 h('div', { class: 'verdict-strip' },
 verdictPill('farm', tl.farm, 'clears its costs'),
@@ -496,7 +542,7 @@ th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mc
 } else {
 hd = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
 th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
-th('ratio', 'Implied', true), th('value', 'Val', true),
+th('ratio', 'Implied \u2014 impliedOf()', true), th('value', 'Val', true),
 th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
 }
 var bd = rw.map(function (r) {
@@ -530,7 +576,9 @@ cls.push(h('td', { class: 'num band' }, r.band_p25_usd === undefined ? '—' : f
 cls.push(h('td', { class: 'num odds' }, r.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(r.token_odds) }, (r.token_odds * 100).toFixed(0) + '%')));
 cls.push(h('td', { class: 'num netline' }, r.net_usd === undefined ? '—' : fmtNetX(r.net_usd)));
 cls.push(h('td', { class: 'num' }, r.net_per_hour === undefined ? '—' : fmtNetRateX(r.net_per_hour)));
-cls.push(h('td', null, r.verdict === undefined ? '—' : h('span', { class: 'badge verdict-' + r.verdict }, r.verdict)));
+cls.push(h('td', { class: 'farmcell' },
+h('span', { class: 'badge verdict-' + (r.verdict === undefined ? 'skip' : r.verdict) }, r.verdict === undefined ? '—' : r.verdict),
+h('span', { class: 'plan-net' }, farmNetLine(r))));
 }
 return h('tr', { class: st.selected && st.selected.slug === r.slug ? 'sel' : '', onclick: function () { st.selected = r; paint(); openDrawer(); } }, cls);
 });
