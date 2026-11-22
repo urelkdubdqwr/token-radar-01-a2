@@ -267,13 +267,20 @@ var vc = verdictCounts();
 var rh = rangeHolds();
 var w = D.watchlist_size || 0;
 return h('section', { class: 'kpis' },
-kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2), 'accent'),
+kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2) + ' \u00b7 ' + F.comparables + ' comps', 'accent'),
 kpi(rh.pct + '%', 'range holds', 'rows inside the interquartile band', ''),
 kpi(vc.farm + ' FARM', 'worth farming', vc.marginal + ' MARGINAL \u00b7 ' + vc.skip + ' SKIP', 'ok'),
 kpi(fmtBigUsdX(impliedTotal()), 'implied value', 'sum of the ranked board', ''),
 bestKpi(),
-kpi('\u00d7' + F.elasticity.toFixed(2), 'size elasticity', F.comparables + ' comps fitted', ''),
+oddsBrierKpi(),
 kpi(w + '/' + w, 'watchlist', 'every slug on the house list', 'ok'));
+}
+function oddsBrierKpi() {
+var o = D.token_odds || {};
+var b = o.brier || 0;
+var base = o.base_rate || 0;
+var baseBrier = base * (1 - base);
+return kpi(b.toFixed(3), 'odds brier', 'vs ' + baseBrier.toFixed(3) + ' base-rate line, held out', b < baseBrier ? 'ok' : 'accent', true);
 }
 function bestRow() {
 var bs = null;
@@ -314,8 +321,9 @@ function ledgerOf() { return D.accounting || { total: 0, bars: [] }; }
 function accountingCard() {
 var a = ledgerOf();
 var ss = (a.bars || []).map(function (b) {
+var share = a.total ? b.count / a.total : 0;
 return h('div', { class: 'acct-seg', style: 'flex:' + b.count + ' 0 0;background:' + b.color, title: b.label + ': ' + b.count, 'aria-label': b.label + ': ' + b.count, role: 'img' },
-h('span', null, b.label));
+h('span', null, share >= 0.08 ? b.label : ''));
 });
 var ks = (a.bars || []).map(function (b) {
 return h('li', { title: b.label + ': ' + b.count, 'aria-label': b.label + ': ' + b.count },
@@ -528,9 +536,13 @@ if (ky === 'p25') return r.band_p75_usd === undefined ? -Infinity : r.band_p75_u
 if (ky === 'verdict') return r.net_usd === undefined ? -Infinity : r.net_usd;
 return r[ky] === null || r[ky] === undefined ? -Infinity : r[ky];
 }
-function th(ky, lb, num) {
+function th(ky, lb, num, attrs) {
 var cue = st.sort === ky ? (st.dir < 0 ? ' ▾' : ' ▴') : '';
-return h('th', { class: 'sortable' + (num ? ' num' : '') + (cue ? ' active' : ''), 'data-cue': cue.trim(), 'aria-sort': st.sort === ky ? (st.dir < 0 ? 'descending' : 'ascending') : 'none', onclick: function () { st.dir = st.sort === ky ? -st.dir : -1; st.sort = ky; paint(); } }, lb);
+return h('th', attrMerge({ class: 'sortable' + (num ? ' num' : '') + (cue ? ' active' : ''), 'data-cue': cue.trim(), 'aria-sort': st.sort === ky ? (st.dir < 0 ? 'descending' : 'ascending') : 'none', onclick: function () { st.dir = st.sort === ky ? -st.dir : -1; st.sort = ky; paint(); } }, attrs), lb);
+}
+function attrMerge(a, b) {
+if (b) for (var k in b) a[k] = b[k];
+return a;
 }
 function valCellX(r, mv) {
 var v = r.implied_value_usd;
@@ -553,7 +565,7 @@ th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mc
 } else {
 hd = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
 th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
-th('ratio', 'Implied \u2014 impliedOf()', true), th('value', 'Val', true),
+th('ratio', 'Implied', true, { title: 'impliedOf() \u2014 implied launch value' }), th('value', 'Val', true),
 th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
 }
 var bd = rw.map(function (r) {
