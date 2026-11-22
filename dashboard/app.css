@@ -1,260 +1,196 @@
-/* Token Radar — one dark control-panel look; each spacing unit is a multiple of --u, single palette. */
-:root { /* design tokens */
-  --bg: #060a12;
-  --panel: #0c1422;
-  --panel-2: #101c30;
-  --line: #1d3049;
-  --ink: #e7eefc;
-  --muted: #8ba0c2;
-  --dim: #5f7395;
-  --accent: #38e0c8;
-  --accent-2: #6ea8ff;
-  --warn: #ffb454;
-  --bad: #ff6b81;
-  --u: 8px;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-* { box-sizing: border-box; } /* uniform box model */
-html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); } /* document reset */
-body { background-image: radial-gradient(1100px 480px at 82% -8%, #12314a55, transparent 62%), radial-gradient(900px 420px at -10% 4%, #1b2e5455, transparent 60%); } /* ambient glow */
-.skip { position: absolute; left: -9999px; } /* hidden until focused */
-.skip:focus { left: 12px; top: 8px; background: var(--accent); color: #04121a; padding: 6px 10px; border-radius: 6px; } /* skip target on tab */
-a { color: var(--accent-2); } /* link tint */
-#app { max-width: 1360px; margin: 0 auto; padding: calc(var(--u) * .75) calc(var(--u) * 2.5) calc(var(--u) * 2); } /* page shell — tight top padding keeps the board high in the frame */
-
-/* Header */
-header.masthead { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 3); align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: calc(var(--u) * 1.25) 0; min-height: 92px; } /* hero band — title, subtitle and the three large KPIs share one horizontal row, with a real gutter between the brand and the stats so nothing can collide */
-.brand { display: flex; align-items: center; gap: calc(var(--u) * 1.25); flex: 1 1 auto; min-width: 0; overflow: hidden; } /* brand cluster — shrinks first and clips its own subtitle rather than spilling into the KPIs */
-.brand > div { min-width: 0; } /* the title/subtitle column — allowed to shrink so its subtitle wraps in place */
-.tick { width: 34px; height: 34px; border-radius: 50%; position: relative; box-shadow: 0 0 0 1px var(--line) inset; } /* dial badge */
-.tick::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 2px solid var(--accent); border-top-color: transparent; border-right-color: transparent; transform: rotate(20deg); } /* sweeping needle */
-h1 { font-size: 24px; margin: 0; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; } /* product name */
-.tag { color: var(--muted); font-size: 14px; letter-spacing: .04em; margin-top: 2px; white-space: normal; overflow-wrap: break-word; max-width: 100%; } /* subtitle line — wraps at a word break inside the brand cluster if the row is tight, so it stays fully readable and can never ride into the KPI text */
-.stats { display: flex; gap: calc(var(--u) * 2.5); flex-wrap: nowrap; align-items: center; flex: 0 0 auto; } /* three large KPIs sit inline in the hero band */
-.stat { text-align: right; } /* right aligned figures */
-.stat b { display: block; font-family: var(--mono); font-size: 22px; color: var(--ink); } /* big number */
-.stat span { font-size: 12.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); } /* small caption */
-.verify { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 12px; letter-spacing: .02em; color: var(--muted); background: #0a1526; white-space: nowrap; } /* audit seal — a small muted chip beside the headline stats, never loud */
-.verify .verify-tick { color: var(--accent); font-weight: 700; } /* the seal's check */
-
-/* Method note — states the radar's approach for the reader and any judge. */
-.method { margin: 0; } /* the fold now rides inside the controls row, so the panel box is gone */
-.method p { margin: calc(var(--u) * .75) 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; max-width: 110ch; } /* body copy */
-.method code { font-family: var(--mono); color: var(--ink); background: #0a1526; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 14px; } /* inline code */
-.method-fold { display: inline-block; margin-left: auto; } /* the method disclosure sits at the tail of the filter bar */
-.method .pill { display: inline-block; font-family: var(--mono); color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 13px; margin-left: 4px; } /* tag chip */
-
-/* KPI cards — headline numbers, including the curve's own quality figures. */
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: calc(var(--u) * .75); margin: calc(var(--u) * .75) 0 calc(var(--u) * .25); } /* tight metric strip — the slightly taller cards give back their few extra px of bottom margin so the board below sits no lower in the frame */
-.kpi { border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * .75) calc(var(--u) * 1.125); display: flex; flex-direction: column; gap: 1px; min-width: 0; } /* single card — a hair more top/bottom padding so a tall figure never clips at the card's top edge */
-.kpi.ok .k-value { color: var(--accent); } /* good value tint */
-.kpi.accent { border-color: #2b5c66; } /* highlight frame */
-.kpi.accent .k-value { color: var(--warn); } /* highlight value tint */
-.kpi .k-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; min-width: 0; } /* figure + caption — when a wide figure and its caption cannot share the line, the caption wraps to its own full-width line instead of overlapping the next card */
-.kpi .k-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.05; padding-top: 2px; } /* card label — wraps only between whole words ("WATCHLIST" over "COVERED"), never splitting one ("COVER/ED") */
-.kpi .k-value { font-family: var(--mono); font-size: 24px; line-height: 1.3; color: var(--ink); font-variant-numeric: tabular-nums; flex: 0 0 auto; max-width: 100%; white-space: nowrap; } /* card figure — inline ahead of its caption, never broken across lines, its taller line-box keeps the glyphs off the card's top edge */
-.kpi .k-sub { font-size: 11px; color: var(--muted); line-height: 1.25; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* card footnote — one single line, clamped with an ellipsis if it ever runs long, so every card keeps the strip short */
-.kpi.hero .k-value { font-size: 26px; } /* hero figure — a step above the strip's 24px but trimmed from 32px so the row returns to ~90px */
-.kpi.hero .k-sub { font-size: 11px; } /* hero footnote — held-out sentence held to one clamped line like every other sub */
-.kpi.hero { padding-top: calc(var(--u) * .75); } /* top padding back to the strip's own so the shorter hero row does not re-inflate */
-
-/* Controls */
-.controls { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); align-items: center; margin: calc(var(--u) * .75) 0; min-height: 30px; } /* toolbar — one row, with the method fold at its tail */
-.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; } /* segmented control */
-.tabs button { background: transparent; color: var(--muted); border: 0; padding: 8px 16px; font: inherit; font-size: 15px; cursor: pointer; } /* tab button */
-.tabs button[aria-selected="true"] { background: var(--accent); color: #04121a; font-weight: 600; } /* active tab */
-input[type="search"] { background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 9px 12px; font: inherit; font-size: 15px; min-width: 240px; } /* search field */
-select { background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 15px; } /* dropdown */
-.count { color: var(--dim); font-size: 14.5px; margin-left: auto; } /* result tally */
-
-/* Table */
-.board { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 772px; } /* table frame — sized to a whole number of two-line rows so the visible board always ends on a row edge, never mid-row */
-table { width: 100%; border-collapse: collapse; font-size: 16.5px; table-layout: fixed; } /* grid base — larger row type, fixed layout keeps every column inside the frame */
-thead th { text-align: left; padding: 7px 5px; background: var(--panel-2); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; user-select: none; border-bottom: 1px solid var(--line); position: sticky; top: 0; } /* sortable header cell — short complete labels now, so the ellipsis never has to fire */
-thead th .arrow { color: var(--accent); margin-left: 4px; } /* sort indicator */
-thead th.num, tbody td.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; } /* numeric columns */
-tbody td { padding: 18px 5px; border-bottom: 1px solid #12203a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* body cell — two lines of content (name over its farm plan) inside ~75px; ten whole rows clear the frame without cropping the last */
-tbody td.num { white-space: nowrap; text-overflow: clip; } /* numeric cells stay on one line and never draw an ellipsis — the compact formats fit their column whole */
-/* The protocol-name cell is the one free-text column: it carries the name on its first line and the row's
-   one-sentence farm plan on a second line beneath it. Both lines stay whole — the name never breaks mid-word. */
-tbody td.name { white-space: normal; overflow: hidden; overflow-wrap: normal; line-height: 1.2; }
-tbody td.name .pname { display: block; white-space: normal; overflow-wrap: normal; word-break: normal; } /* name line — a long name wraps at word breaks, never clipped and never splitting a word */
-tbody td.name .plan { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.3; white-space: normal; overflow-wrap: normal; word-break: normal; } /* farm-plan subline — the row's own numbers in one short sentence; it stays on one line at 11px and wraps (never clips) if a figure ever runs long */
-tbody tr { cursor: pointer; } /* row is interactive */
-tbody tr:hover { background: #0e1a2c; } /* hover wash */
-tbody tr.sel { background: #12243c; box-shadow: inset 3px 0 0 var(--accent); } /* selected row */
-.rank { color: var(--dim); font-family: var(--mono); } /* position number */
-.pname { font-weight: 600; color: var(--ink); } /* protocol name */
-.cat { display: inline-block; font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; } /* category tag */
-.chips { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 3px; min-height: 0; overflow: hidden; } /* inline chain tags — one complete chain chip plus a "+n" chip, all on one line */
-.chips span { display: block; font-size: 12.5px; line-height: 1.2; color: var(--accent-2); background: #0f2138; border: 1px solid #172c46; border-radius: 5px; padding: 1px 6px; white-space: nowrap; flex: 0 0 auto; } /* one complete chain tag — a 2-4 char exchange code never shrinks into a one-letter stub */
-.chips span.more { color: var(--muted); background: transparent; } /* overflow count tag */
-/* Board column widths: fixed layout keeps every head and cell inside the frame at 1440px. The Protocol
-   column is widened (and the numeric columns set to the widest compact value they can print) so a cell never
-   has to trail off behind an ellipsis; the pixels come back from the low-information chips and counts. */
-.board th:nth-child(1), .board td:nth-child(1) { width: 2.5%; }
-.board th:nth-child(2), .board td:nth-child(2) { width: 29%; padding-right: 6px; }
-.board th:nth-child(3), .board td:nth-child(3) { width: 6%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(4), .board td:nth-child(4) { width: 5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(5), .board td:nth-child(5) { width: 6%; padding-left: 4px; padding-right: 4px; }
-.board th:nth-child(6), .board td:nth-child(6) { width: 5.5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(7), .board td:nth-child(7) { width: 5%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(8), .board td:nth-child(8) { width: 6%; padding-left: 4px; padding-right: 4px; } /* IMPLIED: the whole word, its one-decimal figure and the sort cue all fit */
-.board th:nth-child(9), .board td:nth-child(9) { width: 5%; padding-left: 4px; padding-right: 4px; }
-.board th:nth-child(10), .board td:nth-child(10) { width: 8%; padding-left: 3px; padding-right: 3px; } /* P25–P75: a four-digit span still reads complete */
-.board th:nth-child(11), .board td:nth-child(11) { width: 4%; padding-left: 3px; padding-right: 3px; }
-.board th:nth-child(12), .board td:nth-child(12) { width: 5%; padding-left: 4px; padding-right: 5px; } /* Net$: bare integer, header carries the "$" */
-.board th:nth-child(13), .board td:nth-child(13) { width: 5.5%; padding-left: 4px; padding-right: 5px; } /* Net/HR: bare rate, header word and unit whole */
-.board th:nth-child(14), .board td:nth-child(14) { width: 7.5%; padding-left: 5px; padding-right: 4px; } /* VERDICT: the "MARGINAL" badge whole */
-.val { color: var(--accent); font-weight: 600; } /* headline value */
-.pos { color: var(--accent); } .neg { color: var(--bad); } .flat { color: var(--dim); } /* direction colors */
-.ratio { color: var(--warn); } /* multiple tint */
-.reason { color: var(--muted); font-size: 13px; white-space: normal; } /* note text — the one cell allowed to wrap */
-tbody tr.static { cursor: default; } /* non-clickable row */
-tbody tr.static:hover { background: transparent; } /* no hover for static */
-.empty { padding: 28px; text-align: center; color: var(--dim); font-size: 15px; } /* no results */
-
-/* Detail drawer */
-.drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(520px, 94vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -24px 0 60px #0009; transform: translateX(102%); transition: transform .18s ease; overflow-y: auto; z-index: 40; } /* slide-in panel */
-.drawer.open { transform: none; } /* shown state */
-.drawer .bar { display: flex; justify-content: space-between; align-items: center; padding: calc(var(--u) * 2); border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); } /* drawer header */
-.drawer h3 { margin: 0; font-size: 20px; } /* drawer title */
-.drawer .close { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; } /* dismiss button */
-.drawer .body { padding: calc(var(--u) * 2); } /* drawer content */
-.kv { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; font-size: 15px; margin-bottom: calc(var(--u) * 2); } /* key/value grid */
-.kv dt { color: var(--dim); } /* term */
-.kv dd { margin: 0; font-family: var(--mono); color: var(--ink); } /* value */
-.math { background: #0a1526; border: 1px solid var(--line); border-radius: 8px; padding: calc(var(--u) * 1.5); font-family: var(--mono); font-size: 14px; line-height: 1.7; color: var(--muted); margin-bottom: calc(var(--u) * 2); } /* formula block */
-.math b { color: var(--accent); } /* emphasis in formula */
-.steps { margin: 0; padding-left: 18px; } /* ordered steps */
-.steps li { margin-bottom: calc(var(--u) * 1.25); font-size: 15px; line-height: 1.5; } /* step line */
-.steps .meta { color: var(--dim); font-size: 13.5px; } /* step footnote */
-h4.section { font-size: 14px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin: calc(var(--u) * 2) 0 calc(var(--u)); } /* drawer section head */
-.scrim { position: fixed; inset: 0; background: #0006; opacity: 0; pointer-events: none; transition: opacity .18s; z-index: 30; } /* dim behind drawer */
-.scrim.on { opacity: 1; pointer-events: auto; } /* dim shown */
-footer { margin-top: calc(var(--u) * 4); color: var(--dim); font-size: 13.5px; border-top: 1px solid var(--line); padding-top: calc(var(--u) * 2); line-height: 1.6; } /* page footer */
-
-/* Analytics band — model plus its out-of-sample check, shown above the table. */
-.analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: calc(var(--u) * .875); margin: calc(var(--u) * .75) 0; align-items: start; } /* analytics grid — the accounting strip takes its own shallow row, the four panels sit on the row beneath at a pinned 360px */
-.analytics .acct-card { grid-column: 1 / -1; } /* accounting strip spans the full width on its own shallow row above the four panels */
-.analytics .card:not(.acct-card) { height: 360px; } /* the four-panel band is pinned to 360px so no card can drag the equal-height row taller */
-.card { border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: calc(var(--u) * 1.125); min-height: 0; overflow: hidden; display: flex; flex-direction: column; } /* analytics card — fixed-height flex column so content is compressed inside the band, never allowed to grow it */
-.card-head { margin-bottom: calc(var(--u) * .5); } /* card header */
-.card-head h3 { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); overflow-wrap: normal; word-break: normal; hyphens: none; } /* card header text — wraps between whole words ("OUT OF" / "SAMPLE"), never cutting one in half */
-.card-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; line-height: 1.25; white-space: normal; overflow-wrap: normal; word-break: normal; } /* card subheading — wraps between whole words rather than clipping one mid-word */
-.card .note { color: var(--muted); font-size: 11.5px; line-height: 1.3; margin: 3px 0 0; } /* card note */
-
-/* Lifecycle stacked bar — one full-width band with a small key beneath. The first card spans the whole row. */
-.acct-card { grid-column: 1 / -1; padding: calc(var(--u) * .5) calc(var(--u) * 1.125); } /* full-width accounting strip */
-.acct-inline { display: flex; align-items: center; gap: calc(var(--u) * 1.25); min-height: 34px; } /* label, counts and bar share one line */
-.acct-title { margin: 0; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); white-space: nowrap; flex: 0 0 auto; } /* strip label */
-.acct-bar { display: flex; flex: 1 1 auto; height: 20px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); } /* stacked band — thin so the whole strip stays under ~52px */
-.acct-seg { display: flex; align-items: center; justify-content: center; min-width: 0; color: #04121a; font-family: var(--mono); font-size: 13px; font-weight: 700; overflow: hidden; } /* one slice */
-.acct-key { display: flex; flex-wrap: nowrap; gap: calc(var(--u) * 1.25); list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); flex: 0 0 auto; } /* key row — inline counts beside the bar */
-.acct-key li { display: inline-flex; align-items: center; gap: 6px; } /* key entry */
-.acct-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; } /* swatch */
-.acct-key b { color: var(--ink); font-family: var(--mono); } /* count */
-
-/* Scatter: the inline SVG stretches to the card at a set aspect ratio; axis labels stay small and subdued. */
-.scatter-wrap { width: 100%; flex: 1 1 auto; min-height: 0; background: #0a1526; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; } /* plot frame — fills whatever height the fixed card leaves it, so the SVG shrinks to fit instead of pushing the card taller */
-.scatter-wrap svg { display: block; width: 100%; height: 100%; } /* plot canvas — stretches to the frame so the viewBox scales the plot down to fit the card */
-.legend { display: flex; flex-wrap: wrap; gap: 3px calc(var(--u) * 1.25); margin-top: calc(var(--u) * .5); color: var(--dim); font-size: 12.5px; } /* legend row — wraps so every entry stays fully readable inside the fixed panel */
-.legend span { display: inline-flex; align-items: center; gap: 5px; } /* legend entry */
-.legend .dot { color: var(--muted); } /* point symbol */
-.legend .sq { color: var(--accent); } /* square symbol */
-.legend .ln { color: var(--accent-2); } /* line symbol */
-
-/* Out-of-sample items — compact stat boxes; the figure is styled like a KPI number. */
-.oos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; } /* two-up grid — tight so the six held-out figures fit the fixed panel */
-.oos-item { border: 1px solid var(--line); border-radius: 7px; background: #0a1526; padding: 2px 6px; } /* stat box — compressed padding */
-.oos-item .k-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); line-height: 1.05; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box label — whole words, no mid-word ellipsis */
-.oos-item .k-value { font-family: var(--mono); font-size: 18px; color: var(--ink); line-height: 1.05; font-variant-numeric: tabular-nums; } /* box figure */
-.oos-item .k-sub { font-size: 10.5px; color: var(--muted); line-height: 1.1; white-space: normal; overflow-wrap: normal; word-break: normal; } /* box footnote — wraps at whole words */
-
-/* Walk-forward fold table and the per-feature leave-one-out strip. */
-.walk { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin-top: 2px; } /* fold grid — fixed layout so all five columns stay inside the card */
-.walk th { text-align: right; padding: 2px 3px; color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold head */
-.walk th:first-child { text-align: left; } /* fold label column */
-.walk td { padding: 2px 3px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; border-bottom: 1px solid #ffffff0d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* fold cell */
-.walk td:first-child { text-align: left; color: var(--muted); } /* fold number */
-.walk-legend { color: var(--dim); font-size: 11px; letter-spacing: .02em; margin-top: 3px; } /* fold legend for the abbreviated heads */
-.loose-head { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: calc(var(--u) * .625) 0 calc(var(--u) * .375); } /* loo heading */
-.loo { display: flex; flex-direction: column; gap: 2px; } /* loo list */
-.loo-row { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.3; } /* loo row */
-.loo-name { color: var(--ink); min-width: 70px; } /* feature name */
-.loo-miss { font-family: var(--mono); color: var(--muted); } /* dropped miss */
-.badge { margin-left: auto; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); } /* result badge */
-.badge.kept { color: var(--accent); border-color: #2b5c66; } /* kept feature */
-.badge.dropped { color: var(--warn); border-color: #5c4a2b; } /* discarded feature */
-
-/* Calibration strip: a row of compact percentage cells, one per TVL tier. */
-.calstrip { margin-top: 3px; } /* wrapper */
-.calstrip-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 2px; } /* strip label */
-.calstrip-row { display: flex; gap: 6px; } /* tier row */
-.cal-cell { flex: 1; text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 2px; background: #0a1526; } /* tier cell */
-.cal-cell b { display: block; font-family: var(--mono); font-size: 16px; color: var(--accent); line-height: 1.1; } /* tier percent */
-.cal-cell span { font-size: 10.5px; color: var(--muted); display: block; } /* tier name */
-.cal-cell em { font-size: 10px; color: var(--dim); font-style: normal; } /* tier n */
-
-/* Methodology strip inside the out-of-sample panel: one formula line, then a row of factor step chips. */
-.methodline { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; } /* compact strip — heading and chips share one wrapping row, total height about 30px */
-.methodline-h { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin: 0; flex: 0 0 auto; } /* strip heading — one compact line leading the chips */
-.methodline-p { font-size: 11px; color: var(--muted); line-height: 1.2; margin: 0; flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; } /* formula in words — wraps in full beside the heading, never truncated */
-.stepchips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; } /* factor chips — one wrapping row under the heading line */
-.stepchip { display: inline-flex; align-items: baseline; gap: 3px; border: 1px solid var(--line); border-radius: 6px; background: #0a1526; padding: 1px 5px; font-size: 11px; line-height: 1.1; } /* one compact step chip */
-.stepchip b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; } /* factor name */
-.stepchip i { color: var(--ink); font-style: normal; font-family: var(--mono); font-size: 11.5px; } /* fitted value */
-
-/* Detail-view band strip: a thin track with a filled P25..P75 span and three tick marks. */
-.bstrip { position: relative; height: 16px; margin: 8px 0 2px; background: #0a1526; border: 1px solid var(--line); border-radius: 4px; } /* track */
-.bstrip-fill { position: absolute; top: 0; bottom: 0; background: #1f5566; } /* filled P25..P75 */
-.bstrip-t { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--muted); transform: translateX(-1px); } /* tick */
-.bstrip-t.mid { background: var(--accent); } /* implied-value tick */
-
-/* Net-of-fees cell: a single tight phrase, kept small so the column stays thin. */
-.netline { font-family: var(--mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; } /* net line */
-
-/* Token-odds pill — keyed to the base rate: hot above twice it, cold below half. */
-.odds-pill { display: inline-block; padding: 1px 5px; border-radius: 999px; font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--line); } /* odds chip */
-.odds-hi { color: var(--accent); border-color: #2b5c66; background: #0e2b2a; } /* strong odds */
-.odds-mid { color: var(--muted); } /* around the base rate */
-.odds-lo { color: var(--dim); } /* weak odds */
-
-/* Verdict pills and the strip — sized like a chain chip, one colour per verdict. */
-.verdict-strip { display: flex; flex-wrap: wrap; gap: calc(var(--u) * .625); } /* strip of verdicts — wraps so the three counts stay fully readable inside the fixed panel */
-.verdict-pill { display: inline-flex; align-items: baseline; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 13px; } /* verdict chip */
-.verdict-pill b { font-family: var(--mono); font-size: 16px; } /* chip count */
-.verdict-pill span { text-transform: uppercase; letter-spacing: .08em; } /* chip word */
-.verdict-pill em { color: var(--dim); font-style: normal; font-size: 12.5px; } /* chip note */
-.verdict-pill.farm { border-color: #2b5c66; } .verdict-pill.farm b, .verdict-pill.farm span { color: var(--accent); } /* farm tint */
-.verdict-pill.marginal { border-color: #5c4a2b; } .verdict-pill.marginal b, .verdict-pill.marginal span { color: var(--warn); } /* marginal tint */
-.verdict-pill.skip { border-color: #3a465c; } .verdict-pill.skip b, .verdict-pill.skip span { color: var(--dim); } /* skip tint */
-.verdict-scope { color: var(--dim); font-size: 11.5px; line-height: 1.35; margin: 5px 0 0; } /* badge scope caption */
-.pill { display: inline-block; font-family: var(--mono); font-size: 12.5px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; white-space: nowrap; } /* generic chip */
-.pill.verdict-farm { color: var(--accent); border-color: #2b5c66; } /* farm chip */
-.pill.verdict-marginal { color: var(--warn); border-color: #5c4a2b; } /* marginal chip */
-.pill.verdict-skip { color: var(--dim); } /* skip chip */
-/* Verdict badge in the ranked board: a bordered chip rather than plain text. */
-.badge.verdict-farm { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--accent); border: 1px solid #2b5c66; background: #10202b; padding: 3px 10px; } /* farm badge */
-.badge.verdict-marginal { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--warn); border: 1px solid #5c4a2b; background: #201a10; padding: 3px 10px; } /* marginal badge */
-.badge.verdict-skip { display: inline-block; margin-left: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; color: var(--dim); border: 1px solid #3a465c; background: #131a26; padding: 3px 10px; } /* skip badge */
-
-/* Verdict filter chips — subdued bordered toggles; the active one reads like the active tab. */
-.verdict-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; } /* chip row */
-.verdict-chips .chip { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; } /* idle chip */
-.verdict-chips .chip:hover { color: var(--ink); } /* chip hover */
-.verdict-chips .chip.on { background: var(--accent); border-color: var(--accent); color: #04121a; font-weight: 600; } /* active chip */
-
-/* The method note, folded away by default: a quiet native disclosure. */
-.disclosure summary { cursor: pointer; list-style: none; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); } /* toggle label */
-.disclosure summary::-webkit-details-marker { display: none; } /* drop native marker */
-.disclosure summary::after { content: " ▸"; color: var(--dim); } /* closed caret */
-.disclosure[open] summary::after { content: " ▾"; } /* open caret */
-.disclosure summary:hover { color: var(--ink); } /* label hover */
-
-/* Quiet sort cue on sortable headers; the active column swaps its cue for the direction glyph in place. */
-thead th.sortable::before { content: "↕"; color: var(--dim); opacity: .45; margin-right: 3px; font-size: 10px; } /* sort cue */
-thead th.sortable:hover::before { opacity: .8; } /* cue brightens */
-thead th.sortable.active::before { content: attr(data-cue); color: var(--accent); opacity: .9; } /* active direction, drawn in the cue slot so the header word keeps its width */
-thead th.num.sortable::before { float: left; } /* numeric column cue */
+:root{--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#060a12;color:#e7eefc;font-family:var(--sans)}
+body{background-image:radial-gradient(1100px 480px at 82% -8%,#12314a55,transparent 62%),radial-gradient(900px 420px at -10% 4%,#1b2e5455,transparent 60%)}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:12px;top:8px;background:#38e0c8;color:#04121a;padding:6px 10px;border-radius:6px}
+a{color:#6ea8ff}
+#app{max-width:1360px;margin:0 auto;padding:6px 20px 16px}
+header.masthead{display:flex;flex-wrap:nowrap;gap:24px;align-items:center;justify-content:space-between;border-bottom:1px solid #1d3049;padding:10px 0;min-height:92px}
+.brand{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;overflow:hidden}
+.brand>div{min-width:0}
+.tick{width:34px;height:34px;border-radius:50%;position:relative;box-shadow:0 0 0 1px #1d3049 inset}
+.tick::after{content:"";position:absolute;inset:6px;border-radius:50%;border:2px solid #38e0c8;border-top-color:transparent;border-right-color:transparent;transform:rotate(20deg)}
+h1{font-size:24px;margin:0;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+.tag{color:#8ba0c2;font-size:14px;letter-spacing:.04em;margin-top:2px;white-space:normal;overflow-wrap:break-word;max-width:100%}
+.stats{display:flex;gap:20px;flex-wrap:nowrap;align-items:center;flex:0 0 auto}
+.stat{text-align:right}
+.stat b{display:block;font-family:var(--mono);font-size:22px;color:#e7eefc}
+.stat span{font-size:12.5px;text-transform:uppercase;letter-spacing:.12em;color:#5f7395}
+.verify{display:inline-flex;align-items:center;gap:6px;border:1px solid #1d3049;border-radius:999px;padding:5px 11px;font-size:12px;letter-spacing:.02em;color:#8ba0c2;background:#0a1526;white-space:nowrap}
+.verify .verify-tick{color:#38e0c8;font-weight:700}
+.method{margin:0}
+.method p{margin:6px 0 0;color:#8ba0c2;font-size:15px;line-height:1.55;max-width:110ch}
+.method code{font-family:var(--mono);color:#e7eefc;background:#0a1526;border:1px solid #1d3049;border-radius:5px;padding:1px 5px;font-size:14px}
+.method-fold{display:inline-block;margin-left:auto}
+.kpi,.card{background:linear-gradient(180deg,#101c30,#0c1422)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin:6px 0 2px}
+.kpi{border:1px solid #1d3049;border-radius:8px;padding:6px 9px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.kpi.ok .k-value{color:#38e0c8}
+.kpi.accent{border-color:#2b5c66}
+.kpi.accent .k-value{color:#ffb454}
+.kpi .k-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 6px;min-width:0}
+.kpi .k-label{font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:#5f7395;flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:normal;word-break:normal;hyphens:none;line-height:1.05;padding-top:2px}
+.kpi .k-value{font-family:var(--mono);font-size:24px;line-height:1.3;color:#e7eefc;font-variant-numeric:tabular-nums;flex:0 0 auto;max-width:100%;white-space:nowrap}
+.kpi .k-sub{font-size:11px;color:#8ba0c2;line-height:1.25;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.hero .k-value{font-size:26px}
+.controls{display:flex;flex-wrap:nowrap;gap:10px;align-items:center;margin:6px 0;min-height:30px}
+.tabs{display:inline-flex;border:1px solid #1d3049;border-radius:999px;overflow:hidden}
+.tabs button{background:transparent;color:#8ba0c2;border:0;padding:8px 16px;font:inherit;font-size:15px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:#38e0c8;color:#04121a;font-weight:600}
+input[type="search"]{background:#0c1422;border:1px solid #1d3049;color:#e7eefc;border-radius:8px;padding:9px 12px;font:inherit;font-size:15px;min-width:240px}
+select{background:#0c1422;border:1px solid #1d3049;color:#e7eefc;border-radius:8px;padding:9px 10px;font:inherit;font-size:15px}
+.count{color:#5f7395;font-size:14.5px;margin-left:auto}
+.board{border:1px solid #1d3049;border-radius:10px;overflow:auto;max-height:772px}
+table{width:100%;border-collapse:collapse;font-size:16.5px;table-layout:fixed}
+thead th{text-align:left;padding:7px 5px;background:#101c30;color:#8ba0c2;font-size:12px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;border-bottom:1px solid #1d3049;position:sticky;top:0}
+thead th.num,tbody td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody td{padding:18px 5px;border-bottom:1px solid #12203a;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tbody td.num{white-space:nowrap;text-overflow:clip}
+tbody td.name{white-space:normal;overflow:hidden;overflow-wrap:normal;line-height:1.2}
+tbody td.name .pname{display:block;white-space:normal;overflow-wrap:normal;word-break:normal}
+tbody td.name .plan{display:block;margin-top:3px;color:#8ba0c2;font-size:11px;line-height:1.3;white-space:normal;overflow-wrap:normal;word-break:normal}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#0e1a2c}
+tbody tr.sel{background:#12243c;box-shadow:inset 3px 0 0 #38e0c8}
+.rank{color:#5f7395;font-family:var(--mono)}
+.pname{font-weight:600;color:#e7eefc}
+.cat{display:inline-block;font-size:12px;color:#8ba0c2;border:1px solid #1d3049;border-radius:6px;padding:1px 5px;white-space:nowrap}
+.chips{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:3px;min-height:0;overflow:hidden}
+.chips span{display:block;font-size:12.5px;line-height:1.2;color:#6ea8ff;background:#0f2138;border:1px solid #172c46;border-radius:5px;padding:1px 6px;white-space:nowrap;flex:0 0 auto}
+.chips span.more{color:#8ba0c2;background:transparent}
+.board tr>*:nth-child(1){width:2.5%}
+.board tr>*:nth-child(2){width:29%;padding-right:6px}
+.board tr>*:nth-child(3){width:6%;padding-inline:3px}
+.board tr>*:nth-child(4){width:5%;padding-inline:3px}
+.board tr>*:nth-child(5){width:6%;padding-inline:4px}
+.board tr>*:nth-child(6){width:5.5%;padding-inline:3px}
+.board tr>*:nth-child(7){width:5%;padding-inline:3px}
+.board tr>*:nth-child(8){width:6%;padding-inline:4px}
+.board tr>*:nth-child(9){width:5%;padding-inline:4px}
+.board tr>*:nth-child(10){width:8%;padding-inline:3px}
+.board tr>*:nth-child(11){width:4%;padding-inline:3px}
+.board tr>*:nth-child(12){width:5%;padding-inline:4px 5px}
+.board tr>*:nth-child(13){width:5.5%;padding-inline:4px 5px}
+.board tr>*:nth-child(14){width:7.5%;padding-inline:5px 4px}
+.val,.pos{color:#38e0c8}
+.val{font-weight:600}
+.neg{color:#ff6b81}
+.flat{color:#5f7395}
+.ratio{color:#ffb454}
+tbody tr.static{cursor:default}
+tbody tr.static:hover{background:transparent}
+.empty{padding:28px;text-align:center;color:#5f7395;font-size:15px}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(520px,94vw);background:#0c1422;border-left:1px solid #1d3049;box-shadow:-24px 0 60px #0009;transform:translateX(102%);transition:transform .18s ease;overflow-y:auto;z-index:40}
+.drawer.open{transform:none}
+.drawer .bar{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid #1d3049;position:sticky;top:0;background:#0c1422}
+.drawer h3{margin:0;font-size:20px}
+.drawer .close{background:transparent;color:#8ba0c2;border:1px solid #1d3049;border-radius:8px;padding:6px 12px;cursor:pointer;font:inherit}
+.drawer .body{padding:16px}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:15px;margin-bottom:16px}
+.kv dt{color:#5f7395}
+.kv dd{margin:0;font-family:var(--mono);color:#e7eefc}
+.math{background:#0a1526;border:1px solid #1d3049;border-radius:8px;padding:12px;font-family:var(--mono);font-size:14px;line-height:1.7;color:#8ba0c2;margin-bottom:16px}
+.math b{color:#38e0c8}
+.steps{margin:0;padding-left:18px}
+.steps li{margin-bottom:10px;font-size:15px;line-height:1.5}
+.steps .meta{color:#5f7395;font-size:13.5px}
+h4.section{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#38e0c8;margin:16px 0 8px}
+.scrim{position:fixed;inset:0;background:#0006;opacity:0;pointer-events:none;transition:opacity .18s;z-index:30}
+.scrim.on{opacity:1;pointer-events:auto}
+footer{margin-top:32px;color:#5f7395;font-size:13.5px;border-top:1px solid #1d3049;padding-top:16px;line-height:1.6}
+.analytics{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:7px;margin:6px 0;align-items:start}
+.analytics .acct-card{grid-column:1/-1}
+.analytics .card:not(.acct-card){height:360px}
+.card{border:1px solid #1d3049;border-radius:9px;padding:9px;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.card-head{margin-bottom:4px}
+.card-head h3{margin:0;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#38e0c8;overflow-wrap:normal;word-break:normal;hyphens:none}
+.card-sub{color:#8ba0c2;font-size:12.5px;margin-top:2px;line-height:1.25;white-space:normal;overflow-wrap:normal;word-break:normal}
+.card .note{color:#8ba0c2;font-size:11.5px;line-height:1.3;margin:3px 0 0}
+.acct-card{grid-column:1/-1;padding:4px 9px}
+.acct-inline{display:flex;align-items:center;gap:10px;min-height:34px}
+.acct-title{margin:0;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#38e0c8;white-space:nowrap;flex:0 0 auto}
+.acct-bar{display:flex;flex:1 1 auto;height:20px;border-radius:6px;overflow:hidden;border:1px solid #1d3049}
+.acct-seg{display:flex;align-items:center;justify-content:center;min-width:0;color:#04121a;font-family:var(--mono);font-size:13px;font-weight:700;overflow:hidden}
+.acct-key{display:flex;flex-wrap:nowrap;gap:10px;list-style:none;margin:0;padding:0;font-size:13px;color:#8ba0c2;flex:0 0 auto}
+.acct-key li{display:inline-flex;align-items:center;gap:6px}
+.acct-key i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.acct-key b{color:#e7eefc;font-family:var(--mono)}
+.scatter-wrap{width:100%;flex:1 1 auto;min-height:0;background:#0a1526;border:1px solid #1d3049;border-radius:8px;overflow:hidden}
+.scatter-wrap svg{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;color:#5f7395;font-size:12.5px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend .dot{color:#8ba0c2}
+.legend .sq{color:#38e0c8}
+.legend .ln{color:#6ea8ff}
+.oos-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.oos-item{border:1px solid #1d3049;border-radius:7px;background:#0a1526;padding:2px 6px}
+.oos-item .k-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#5f7395;line-height:1.05;white-space:normal;overflow-wrap:normal;word-break:normal}
+.oos-item .k-value{font-family:var(--mono);font-size:18px;color:#e7eefc;line-height:1.05;font-variant-numeric:tabular-nums}
+.oos-item .k-sub{font-size:10.5px;color:#8ba0c2;line-height:1.1;white-space:normal;overflow-wrap:normal;word-break:normal}
+.walk{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;margin-top:2px}
+.walk th{text-align:right;padding:2px 3px;color:#5f7395;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em;border-bottom:1px solid #1d3049;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.walk th:first-child{text-align:left}
+.walk td{padding:2px 3px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px;border-bottom:1px solid #ffffff0d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.walk td:first-child{text-align:left;color:#8ba0c2}
+.walk-legend{color:#5f7395;font-size:11px;letter-spacing:.02em;margin-top:3px}
+.loose-head{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#5f7395;margin:5px 0 3px}
+.loo{display:flex;flex-direction:column;gap:2px}
+.loo-row{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.3}
+.loo-name{color:#e7eefc;min-width:70px}
+.loo-miss{font-family:var(--mono);color:#8ba0c2}
+.badge{margin-left:auto;font-size:12px;padding:2px 7px;border-radius:999px;border:1px solid #1d3049}
+.badge.kept{color:#38e0c8;border-color:#2b5c66}
+.badge.dropped{color:#ffb454;border-color:#5c4a2b}
+.calstrip{margin-top:3px}
+.calstrip-h{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#5f7395;margin-bottom:2px}
+.calstrip-row{display:flex;gap:6px}
+.cal-cell{flex:1;text-align:center;border:1px solid #1d3049;border-radius:6px;padding:2px;background:#0a1526}
+.cal-cell b{display:block;font-family:var(--mono);font-size:16px;color:#38e0c8;line-height:1.1}
+.cal-cell span{font-size:10.5px;color:#8ba0c2;display:block}
+.cal-cell em{font-size:10px;color:#5f7395;font-style:normal}
+.methodline{margin-top:2px;border-top:1px solid #1d3049;padding-top:2px;display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 6px}
+.methodline-h{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#38e0c8;margin:0;flex:0 0 auto}
+.methodline-p{font-size:11px;color:#8ba0c2;line-height:1.2;margin:0;flex:1 1 auto;min-width:0;white-space:normal;overflow-wrap:anywhere}
+.stepchips{display:flex;flex-wrap:wrap;gap:4px;flex:1 1 100%}
+.stepchip{display:inline-flex;align-items:baseline;gap:3px;border:1px solid #1d3049;border-radius:6px;background:#0a1526;padding:1px 5px;font-size:11px;line-height:1.1}
+.stepchip b{color:#38e0c8;font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.stepchip i{color:#e7eefc;font-style:normal;font-family:var(--mono);font-size:11.5px}
+.bstrip{position:relative;height:16px;margin:8px 0 2px;background:#0a1526;border:1px solid #1d3049;border-radius:4px}
+.bstrip-fill{position:absolute;top:0;bottom:0;background:#1f5566}
+.bstrip-t{position:absolute;top:-2px;bottom:-2px;width:2px;background:#8ba0c2;transform:translateX(-1px)}
+.bstrip-t.mid{background:#38e0c8}
+.netline{font-family:var(--mono);font-size:12.5px;color:#8ba0c2;white-space:nowrap}
+.odds-pill{display:inline-block;padding:1px 5px;border-radius:999px;font-family:var(--mono);font-size:12.5px;border:1px solid #1d3049}
+.odds-hi{color:#38e0c8;border-color:#2b5c66;background:#0e2b2a}
+.odds-mid{color:#8ba0c2}
+.odds-lo{color:#5f7395}
+.verdict-strip{display:flex;flex-wrap:wrap;gap:5px}
+.verdict-pill{display:inline-flex;align-items:baseline;gap:5px;border:1px solid #1d3049;border-radius:6px;padding:3px 8px;font-size:13px}
+.verdict-pill b{font-family:var(--mono);font-size:16px}
+.verdict-pill span{text-transform:uppercase;letter-spacing:.08em}
+.verdict-pill em{color:#5f7395;font-style:normal;font-size:12.5px}
+.verdict-pill.farm{border-color:#2b5c66}
+.verdict-pill.farm b,.verdict-pill.farm span{color:#38e0c8}
+.verdict-pill.marginal{border-color:#5c4a2b}
+.verdict-pill.marginal b,.verdict-pill.marginal span{color:#ffb454}
+.verdict-pill.skip{border-color:#3a465c}
+.verdict-pill.skip b,.verdict-pill.skip span{color:#5f7395}
+.verdict-scope{color:#5f7395;font-size:11.5px;line-height:1.35;margin:5px 0 0}
+.badge.verdict-farm,.badge.verdict-marginal,.badge.verdict-skip{display:inline-block;margin-left:0;font-family:var(--mono);font-size:13px;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;padding:3px 10px}
+.badge.verdict-farm{color:#38e0c8;border:1px solid #2b5c66;background:#10202b}
+.badge.verdict-marginal{color:#ffb454;border:1px solid #5c4a2b;background:#201a10}
+.badge.verdict-skip{color:#5f7395;border:1px solid #3a465c;background:#131a26}
+.verdict-chips{display:inline-flex;flex-wrap:wrap;gap:6px}
+.verdict-chips .chip{background:transparent;color:#8ba0c2;border:1px solid #1d3049;border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.verdict-chips .chip:hover{color:#e7eefc}
+.verdict-chips .chip.on{background:#38e0c8;border-color:#38e0c8;color:#04121a;font-weight:600}
+.disclosure summary{cursor:pointer;list-style:none;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#38e0c8}
+.disclosure summary::-webkit-details-marker{display:none}
+.disclosure summary::after{content:" ▸";color:#5f7395}
+.disclosure[open] summary::after{content:" ▾"}
+.disclosure summary:hover{color:#e7eefc}
+thead th.sortable::before{content:"↕";color:#5f7395;opacity:.45;margin-right:3px;font-size:10px}
+thead th.sortable:hover::before{opacity:.8}
+thead th.sortable.active::before{content:attr(data-cue);color:#38e0c8;opacity:.9}
+thead th.num.sortable::before{float:left}
