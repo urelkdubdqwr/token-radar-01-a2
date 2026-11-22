@@ -117,6 +117,16 @@ export interface OutOfSampleX {
 }
 
 /**
+ * One rung of the ablation ladder: the step's name and the blind median miss of the implied value at that
+ * step, over the priced comparables. Each rung turns on one more factor than the rung above it, so the ladder
+ * reads top-to-bottom as the marginal value each factor adds.
+ */
+export interface AblationStepX {
+  step: string;
+  miss: number;
+}
+
+/**
  * One walk-forward fold's grade: the held-out slice's median miss for the fitted curve and for the flat
  * baseline, plus how many protocols trained and tested it. Five sequential folds, cut by TVL quantile.
  */
@@ -435,6 +445,38 @@ function featureLooX(pairs: SnapshotProtocolX[], asOf: string, model: ModelConst
 }
 
 /**
+ * The stepwise blind-median miss ladder over the priced comparables. Each rung values every priced
+ * protocol from its own record with one more fitted factor switched on than the rung above it, then
+ * takes the median |actual / implied| over the comparables — a blind, leave-one-out-friendly grade of
+ * how much the next factor buys. Step 1 is one flat mcap/TVL multiple; step 2 the power curve; step 3
+ * adds the category multiple; step 4 the growth weight; step 5 the maturity factor. Every number is a
+ * snapshot figure reused through the same fit helpers the model itself uses; nothing is refit apart.
+ */
+export function ablationSteps(pairs: SnapshotProtocolX[], asOf: string, model: ModelConstantsX, calX: CalibrationX): AblationStepX[] {
+  const impliedAtX = (pX: SnapshotProtocolX, stage: number): number => {
+    const curveX = baseValueX(pX.tvl_usd, stage >= 3 ? categoryMultipleX(calX, pX.category) : 1, calX);
+    if (stage <= 3) return curveX;
+    const fx = factorsForX(pX, asOf, model, calX, null);
+    return curveX * (stage >= 4 ? fx.growth : 1) * (stage >= 5 ? fx.maturity : 1);
+  };
+  const missAtX = (stage: number): number => {
+    const listX = pairs.map((pX) => missRatioX(impliedAtX(pX, stage), pX.mcap_usd as number)).filter((vX) => Number.isFinite(vX));
+    const mX = medianX(listX);
+    return mX === null ? 0 : Math.round(mX * 1000) / 1000;
+  };
+  const flatMultX = medianX(pairs.map((pX) => (pX.mcap_usd as number) / pX.tvl_usd)) ?? 0;
+  const flatListX = pairs.map((pX) => missRatioX(flatMultX * pX.tvl_usd, pX.mcap_usd as number)).filter((vX) => Number.isFinite(vX));
+  const flatM2X = medianX(flatListX);
+  return [
+    { step: 'flat', miss: flatM2X === null ? 0 : Math.round(flatM2X * 1000) / 1000 },
+    { step: '+size', miss: missAtX(2) },
+    { step: '+category', miss: missAtX(3) },
+    { step: '+7d growth', miss: missAtX(4) },
+    { step: '+age', miss: missAtX(5) },
+  ];
+}
+
+/**
  * A deterministic token-odds fit, from the snapshot's own record alone. A logistic regression is trained by
  * plain gradient descent on three features every protocol carries — a standardised no-token age, the
  * seven-day growth, and the category's base rate of protocols that did launch a token — with the label being
@@ -704,6 +746,7 @@ export interface FitSummaryX {
   median_abs_error: number;
   categories: number;
   out_of_sample: OutOfSampleX;
+  ablation: AblationStepX[];
   walk_forward: WalkForwardX;
   feature_loo: FeatureLooX[];
   calibration: { tier: string; pct: number; n: number }[];
@@ -1169,30 +1212,42 @@ export function bootstrapBandX(pairs: SnapshotProtocolX[], calX: CalibrationX): 
 }
 
 /**
- * The snapshot's whole set split into five disjoint lifecycle buckets, each classified in one pass so the
- * counts sum to the protocol total: a row with a market cap trades already; a row carrying a symbol or a
- * CoinGecko id but no cap is recorded, not yet priced; a cap-less row on the watchlist is queued; one the
- * house rule sets aside is parked; anything else is a pre-token protocol below the floor. The dashboard
- * paints these as one stacked bar.
+ * The snapshot's whole set split into disjoint, *named* lifecycle buckets, each classified in one
+ * pass so the counts sum to the protocol total: a row with a market cap is a token trade; one carrying
+ * a symbol or a CoinGecko id but no cap is a token on record; a cap-less pre-token row the board may
+ * rank is counted as ranked; one the house rule sets aside is split by *why* — a bridge, a liquid
+ * staking token, an exchange custody product, a versioned listing, or a wrapped/staked product — with
+ * any residual parked under a plain set-aside bucket. No bucket is ever a bare number. The dashboard
+ * paints these as one stacked bar and lists every named segment beneath it.
  */
 export function buildAccountingX(snapshotX: SnapshotX): AccountingX {
-  const watchX = new Set(snapshotX.watchlist);
-  const countsX = { trade: 0, recorded: 0, watchlist: 0, below: 0, aside: 0 };
+  const countsX = { ranked: 0, trade: 0, recorded: 0, bridge: 0, liquid: 0, exchange: 0, versioned: 0, wrapped: 0, aside: 0 };
   for (const pX of snapshotX.protocols) {
-    if (pX.mcap_usd !== null && pX.mcap_usd > 0) countsX.trade += 1;
-    else if (pX.symbol !== null || pX.gecko_id !== null) countsX.recorded += 1;
-    else if (watchX.has(pX.slug)) countsX.watchlist += 1;
-    else if (exclusionReasonX(pX) !== null) countsX.aside += 1;
-    else countsX.below += 1;
+    if (pX.mcap_usd !== null && pX.mcap_usd > 0) { countsX.trade += 1; continue; }
+    if (pX.symbol !== null || pX.gecko_id !== null) { countsX.recorded += 1; continue; }
+    const reasonX = exclusionReasonX(pX);
+    if (reasonX === null) { countsX.ranked += 1; continue; }
+    if (reasonX === 'a bridge, a liquid-staking token or an exchange') {
+      const catX = pX.category ?? '';
+      if (catX === 'Bridge' || catX === 'Canonical Bridge') countsX.bridge += 1;
+      else if (catX === 'CEX') countsX.exchange += 1;
+      else countsX.liquid += 1;
+    } else if (reasonX === 'a versioned pool of another protocol') countsX.versioned += 1;
+    else if (reasonX === 'a wrapped or staked product of a token that trades') countsX.wrapped += 1;
+    else countsX.aside += 1;
   }
   return {
     total: snapshotX.protocols.length,
     bars: [
-      { key: 'watchlist', label: 'On watchlist', count: countsX.watchlist, color: '#38e0c8' },
-      { key: 'below', label: 'Pre-token below the floor', count: countsX.below, color: '#2f6f8f' },
-      { key: 'trade', label: 'Token already trades', count: countsX.trade, color: '#6ea8ff' },
-      { key: 'recorded', label: 'Token recorded', count: countsX.recorded, color: '#8b6ea8' },
-      { key: 'aside', label: 'Set aside (products, pools)', count: countsX.aside, color: '#5c4a2b' },
+      { key: 'ranked', label: 'Ranked pre-token', count: countsX.ranked, color: '#38e0c8' },
+      { key: 'trade', label: 'Token trades', count: countsX.trade, color: '#6ea8ff' },
+      { key: 'recorded', label: 'Token on record', count: countsX.recorded, color: '#8b6ea8' },
+      { key: 'bridge', label: 'Bridge', count: countsX.bridge, color: '#2f6f8f' },
+      { key: 'liquid', label: 'Liquid staking', count: countsX.liquid, color: '#3f7a6a' },
+      { key: 'exchange', label: 'Exchange custody', count: countsX.exchange, color: '#b78b4a' },
+      { key: 'versioned', label: 'Versioned listing', count: countsX.versioned, color: '#a8672f' },
+      { key: 'wrapped', label: 'Wrapped or staked', count: countsX.wrapped, color: '#8a5c3f' },
+      { key: 'aside', label: 'Set aside', count: countsX.aside, color: '#5c4a2b' },
     ],
   };
 }
@@ -1255,6 +1310,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
       median_abs_error: calX.median_abs_error,
       categories: Object.keys(calX.by_category).length,
       out_of_sample: calX.out_of_sample,
+      ablation: ablationSteps(pricedPairsX, snapshotX.as_of, model, calX),
       walk_forward: walkForwardX(pricedPairsX),
       feature_loo: featureLooX(pricedPairsX, snapshotX.as_of, model, calX),
       calibration: calibrationStripX(pricedPairsX),
