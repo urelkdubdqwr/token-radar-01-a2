@@ -245,17 +245,35 @@ return h('div', { class: 'verify-row' },
 verifyPill('checkBoard(): ' + cb.ok + '/' + cb.n + ' rows equal board.json', 'checkBoard() recomputes every ranked row from window.RADAR with impliedOf() and compares it to the board.json value the page renders'),
 verifyPill('Watchlist ' + wl.ok + '/' + wl.n + ' on the board', 'every slug on the snapshot watchlist is carried on the ranked board and the set-aside set'));
 }
+function rangeHolds() {
+var priced = (D.live || []).filter(function (p) { return p.tvl_usd > 0 && p.mcap_usd > 0; });
+if (!priced.length) return { pct: 0, n: 0, inb: 0 };
+var inb = 0;
+priced.forEach(function (p) {
+var curve = F.alpha * Math.pow(p.tvl_usd, F.elasticity);
+var ratio = p.mcap_usd / curve;
+if (ratio >= F.err_lo && ratio <= F.err_hi) inb++;
+});
+return { pct: Math.round((inb / priced.length) * 100), n: priced.length, inb: inb };
+}
+function impliedTotal() {
+var tot = 0;
+(D.rows || []).forEach(function (r) { if (isFinite(r.implied_value_usd) && r.implied_value_usd > 0) tot += r.implied_value_usd; });
+return tot;
+}
 function kpis() {
-var p = D.pre_token_size, lv = D.live_size, as = D.set_aside_size;
+var o = (F.out_of_sample || {});
+var vc = verdictCounts();
+var rh = rangeHolds();
+var w = D.watchlist_size || 0;
 return h('section', { class: 'kpis' },
-kpi(D.watchlist_size + ' / ' + D.watchlist_size, 'watchlist covered', 'every slug on the list', 'ok'),
-kpi('\u00d7' + F.elasticity.toFixed(2), 'impliedOf() size elasticity', 'value scales as TVL^' + F.elasticity.toFixed(2) + ' \u00b7 held-out miss \u00d7' + (F.median_abs_error || 0).toFixed(2), '', true),
-kpi(F.comparables, 'comps fit', 'priced protocols behind the curve \u00b7 graded out of sample', '', true),
-kpi('×' + F.err_lo.toFixed(2) + '–×' + F.err_hi.toFixed(2), 'half land in', 'interquartile band', 'accent'),
-kpi(p, 'pre-token', as + ' set aside', ''),
-kpi(lv, 'tokens', 'shown apart, not ranked', ''),
-oddsKpi(),
-bestKpi());
+kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2), 'accent'),
+kpi(rh.pct + '%', 'range holds', 'rows inside the interquartile band', ''),
+kpi(vc.farm + ' FARM', 'worth farming', vc.marginal + ' MARGINAL \u00b7 ' + vc.skip + ' SKIP', 'ok'),
+kpi(fmtBigUsdX(impliedTotal()), 'implied value', 'sum of the ranked board', ''),
+bestKpi(),
+kpi('\u00d7' + F.elasticity.toFixed(2), 'size elasticity', F.comparables + ' comps fitted', ''),
+kpi(w + '/' + w, 'watchlist', 'every slug on the house list', 'ok'));
 }
 function bestRow() {
 var bs = null;
@@ -267,14 +285,13 @@ var bs = bestRow();
 if (!bs) return null;
 var rate = bs.net_per_hour;
 return kpi((rate >= 0 ? '+' : '\u2212') + fmtMoney(Math.abs(rate), 2), 'best per hour',
-bs.name + ' \u00b7 net ' + (bs.net_usd >= 0 ? '+' : '\u2212') + fmtMoney(Math.abs(bs.net_usd), 0), 'ok', true);
+bs.name + ' - net ' + (bs.net_usd >= 0 ? '+' : '\u2212') + fmtMoney(Math.abs(bs.net_usd), 0), 'ok', true);
 }
-function oddsKpi() {
-var o = D.token_odds || {};
-var br = o.brier || 0, b = o.base_rate || 0;
-var bb = b * (1 - b);
-var bt = br < bb;
-return kpi(br.toFixed(3), 'odds brier', 'calibration of the stated odds \u00b7 beats the ' + bb.toFixed(3) + ' base-rate line, held out', bt ? 'ok' : 'accent', true);
+function fmtBigUsdX(n) {
+if (n === null || n === undefined || !isFinite(n)) return 'n/a';
+if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+return '$' + Math.round(n);
 }
 function kpi(value, lb, sub, cls, hero) {
 return h('div', { class: 'kpi ' + (cls || '') + (hero ? ' hero' : '') },
@@ -297,16 +314,16 @@ function ledgerOf() { return D.accounting || { total: 0, bars: [] }; }
 function accountingCard() {
 var a = ledgerOf();
 var ss = (a.bars || []).map(function (b) {
-return h('div', { class: 'acct-seg', style: 'flex:' + b.count + ' 0 0;background:' + b.color, title: b.label + ': ' + b.count },
-h('span', null, String(b.count)));
+return h('div', { class: 'acct-seg', style: 'flex:' + b.count + ' 0 0;background:' + b.color, title: b.label + ': ' + b.count, 'aria-label': b.label + ': ' + b.count, role: 'img' },
+h('span', null, b.label));
 });
 var ks = (a.bars || []).map(function (b) {
 return h('li', { title: b.label + ': ' + b.count, 'aria-label': b.label + ': ' + b.count },
-h('i', { style: 'background:' + b.color }), h('b', null, String(b.count)));
+h('i', { style: 'background:' + b.color }), h('b', null, b.label), h('u', null, String(b.count)));
 });
 return h('section', { class: 'card acct-card' },
 h('div', { class: 'acct-inline' },
-h('h3', { class: 'acct-title' }, 'Protocol accounting \u2014 ', h('span', { class: 'fn' }, 'ledgerOf()')),
+h('h3', { class: 'acct-title' }, a.total + ' protocols read, each accounted for \u2014 ', h('span', { class: 'fn' }, 'ledgerOf()')),
 h('div', { class: 'acct-bar' }, ss),
 h('ul', { class: 'acct-key' }, ks)));
 }
@@ -399,8 +416,8 @@ oosItem('leave-one-out miss', '×' + (o.miss_median || 0).toFixed(2), o.tested +
 oosItem('flat baseline', '×' + (o.flat_miss_median || 0).toFixed(2), 'one multiple for all'),
 oosItem('time-split miss', '×' + (o.split_miss || 0).toFixed(2), o.split_tested + ' newer held out'),
 oosItem('split baseline', '×' + (o.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
+ablationLadder(),
 calStrip(),
-methodStripX(),
 h('p', { class: 'note' }, bt
 ? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
 : 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
@@ -414,23 +431,17 @@ return h('div', { class: 'cal-cell' }, h('b', null, (t.pct * 100).toFixed(0) + '
 })));
 }
 function oosItem(lb, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, lb), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
-function methodStripX() {
-var a = F.alpha || 0, e = F.elasticity || 0;
-var gw = M.growth_weight, gl = M.growth_floor, gh = M.growth_cap;
-var ml = M.maturity_floor, mh = M.maturity_floor + M.maturity_range, my = (M.maturity_days / 365);
-var sh = M.category_shrink;
-var sp = [
-{ k: 'size', v: 'widths \u00d7' + a.toPrecision(3) + ' \u00b7 TVL^' + e.toFixed(2) },
-{ k: 'sector', v: 'per-category median \u00f7' + sh + ' to 1' },
-{ k: 'momentum', v: gl + '%..' + gh + '% \u00d7 ' + gw.toFixed(2) },
-{ k: 'age', v: ml.toFixed(1) + '\u2192' + mh.toFixed(1) + ' over ' + my.toFixed(0) + 'y' }
-];
-return h('div', { class: 'methodline' },
-h('div', { class: 'methodline-h' }, 'How a launch is priced'),
-h('div', { class: 'methodline-p' }, 'implied value = fitted size curve on TVL, times sector, times momentum, times age (fitted on the ' + F.comparables + ' comparables).'),
-h('div', { class: 'stepchips' }, sp.map(function (s) {
-return h('span', { class: 'stepchip' }, h('b', null, s.k), h('i', null, s.v));
-})));
+function ablationLadder() {
+var rows = (F.ablation || []).map(function (s) {
+return h('tr', null,
+h('td', null, s.step),
+h('td', { class: 'num' }, '\u00d7' + (s.miss || 0).toFixed(2)));
+});
+return h('div', { class: 'ablade' },
+h('div', { class: 'methodline-h' }, 'How a launch is priced \u2014 ablationSteps()'),
+h('table', { class: 'ablade-t' },
+h('thead', null, h('tr', null, h('th', null, 'Step'), h('th', { class: 'num' }, 'Blind median miss'))),
+h('tbody', null, rows)));
 }
 var VK = ['farm', 'marginal', 'skip'];
 function verdictCounts() {
@@ -450,7 +461,7 @@ verdictPill('farm', tl.farm, 'clears its costs'),
 verdictPill('marginal', tl.marginal, 'clears only at the upper band'),
 verdictPill('skip', tl.skip, 'the band cannot clear it')),
 h('p', { class: 'verdict-scope' }, 'Counts cover the ranked pre-token board only — the same rows each matching verdict chip filters; the set-aside and token-on-record tabs are not included.')),
-bs ? h('p', { class: 'note' }, 'Best net per hour: ' + bs.name + ' at ' + fmtMoney(bs.net_per_hour, 2) + ' an hour (verdict ' + bs.verdict + ').') : null);
+bs ? h('p', { class: 'note' }, 'Best net per hour \u2014 bestRow(): ' + bs.name + ' at ' + fmtMoney(bs.net_per_hour, 2) + ' an hour (verdict ' + bs.verdict + ').') : null);
 }
 function verdictPill(kind, n, sub) { return h('div', { class: 'verdict-pill ' + kind }, h('b', null, String(n)), h('span', null, kind), h('em', null, sub)); }
 function card(title, sub) {
@@ -632,7 +643,7 @@ bdy.appendChild(h('ul', { class: 'peers' }, prs.map(function (pe) {
 return h('li', null, h('span', { class: 'pname' }, pe.name), h('span', { class: 'ratio' }, ' ' + pe.multiple.toFixed(2) + '× mcap / TVL'));
 })));
 }
-bdy.appendChild(h('h4', { class: 'section' }, 'Farming plan — per-step cost and time'));
+bdy.appendChild(h('h4', { class: 'section' }, 'Farming plan — farmPlan()'));
 var sts = farmPlan(r);
 bdy.appendChild(h('ol', { class: 'steps' }, sts.map(function (s) {
 return h('li', null, h('span', null, s.t), h('div', { class: 'meta' }, 'Cost: ' + s.c + ' · Time: ' + s.d));
