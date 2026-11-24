@@ -265,15 +265,13 @@ function kpis() {
 var o = (F.out_of_sample || {});
 var vc = verdictCounts();
 var rh = rangeHolds();
-var w = D.watchlist_size || 0;
 return h('section', { class: 'kpis' },
 kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2) + ' \u00b7 ' + F.comparables + ' comps', 'accent'),
 kpi(rh.pct + '%', 'range holds', 'rows inside the interquartile band', ''),
 kpi(vc.farm + ' FARM', 'worth farming', vc.marginal + ' MARGINAL \u00b7 ' + vc.skip + ' SKIP', 'ok'),
 kpi(fmtBigUsdX(impliedTotal()), 'implied value', 'sum of the ranked board', ''),
 bestKpi(),
-oddsBrierKpi(),
-kpi(w + '/' + w, 'watchlist', 'every slug on the house list', 'ok'));
+oddsBrierKpi());
 }
 function oddsBrierKpi() {
 var o = D.token_odds || {};
@@ -315,7 +313,7 @@ h('p', { html: 'That curve is fitted by least squares on <code>log(mcap)</code> 
 h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Tokens</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Aside</b>, never mixed into the ranking.' }));
 }
 function analytics() {
-return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), oosCard(), walkForward(), verdictCard());
+return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), walkForward(), verdictCard());
 }
 function ledgerOf() { return D.accounting || { total: 0, bars: [] }; }
 function accountingCard() {
@@ -353,14 +351,17 @@ h('span', { class: 'loo-name' }, f.feature),
 h('span', { class: 'loo-miss' }, '×' + f.miss.toFixed(2)),
 h('span', { class: 'badge ' + (f.kept ? 'kept' : 'dropped') }, f.kept ? 'kept, earns its place' : 'tested, not kept'));
 });
-return card('Walk-forward \u2014 walkForward()', 'graded on the fold it never saw',
+var vc = card('VALIDATION — backtest() · walkForward()', 'the curve, graded on folds it never saw',
 h('div', null,
 h('table', { class: 'walk' }, h('thead', null, hd), h('tbody', null, rw)),
-h('div', { class: 'walk-legend' }, 'Curve = the fitted curve\u2019s miss \u00b7 Flat = one flat multiple for every protocol')),
+h('div', { class: 'walk-legend' }, 'Curve = the fitted curve’s miss · Flat = one flat multiple for every protocol')),
 h('p', { class: 'note' }, 'Pooled walk-forward miss ×' + (w.miss || 0).toFixed(2) + ' over ' + (w.tested || 0)
 + ' held-out protocols versus the flat baseline ×' + (w.flat_miss || 0).toFixed(2) + ' — taken out-of-sample, in-sample it sits at the fitted curve above.'),
+ablationLadder(),
 h('h4', { class: 'loose-head' }, 'Per-feature leave-one-out'),
 h('div', { class: 'loo' }, loo));
+vc.classList.add('valcard');
+return vc;
 }
 function svg(tag, aa, text) {
 var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -405,40 +406,12 @@ var tx = padL + 14, ty = padT + 16;
 s.appendChild(svg('text', { x: tx, y: ty, fill: '#6ea8ff', 'font-size': 12, 'text-anchor': 'start', 'font-weight': 700 }, 'size curve \u2014 ' + F.comparables + ' comps'));
 s.appendChild(svg('text', { x: tx, y: ty + 16, fill: '#5f7395', 'font-size': 11, 'text-anchor': 'start' }, 'log\u2081\u2080 value = ' + la.toFixed(2) + ' + ' + F.elasticity.toFixed(2) + ' \u00b7 log\u2081\u2080 TVL \u00b7 band \u00d7' + F.err_lo.toFixed(2) + '\u2013\u00d7' + F.err_hi.toFixed(2)));
 var lg = h('div', { class: 'legend' },
-h('span', { class: 'dot' }, '\u25cf priced protocol'),
-h('span', { class: 'sq' }, '\u25a0 ranked pre-token row'),
-h('span', { class: 'ln' }, '\u2014 fitted curve \u00b7 shaded \u00d7' + F.err_lo.toFixed(2) + '\u2013\u00d7' + F.err_hi.toFixed(2)));
+h('span', { class: 'dot' }, '\u25cf priced'),
+h('span', { class: 'sq' }, '\u25a0 ranked'),
+h('span', { class: 'ln' }, '\u2014 curve \u00d7' + F.err_lo.toFixed(2) + '\u2013\u00d7' + F.err_hi.toFixed(2)));
 return card('Price vs size \u2014 scatterCard()', 'priced protocols and ranked rows',
 h('div', { class: 'scatter-wrap' }, s), lg);
 }
-function backtest() { return F.out_of_sample || {}; }
-function oosCard() {
-var o = backtest();
-var w = (F.walk_forward) || {};
-var bt = (o.miss_median || 0) < (o.flat_miss_median || 0) && (o.split_miss || 0) < (o.split_flat_miss || 0);
-return card('Out of sample \u2014 backtest()', 'the curve, tested on protocols it did not fit',
-h('div', { class: 'oos-grid' },
-oosItem('in-sample miss', '×' + (F.median_abs_error || 0).toFixed(2), 'the fitted curve, itself'),
-oosItem('walk-forward miss', '×' + (w.miss || 0).toFixed(2), (w.tested || 0) + ' across 5 folds'),
-oosItem('leave-one-out miss', '×' + (o.miss_median || 0).toFixed(2), o.tested + ' held out'),
-oosItem('flat baseline', '×' + (o.flat_miss_median || 0).toFixed(2), 'one multiple for all'),
-oosItem('time-split miss', '×' + (o.split_miss || 0).toFixed(2), o.split_tested + ' newer held out'),
-oosItem('split baseline', '×' + (o.split_flat_miss || 0).toFixed(2), 'one multiple for all')),
-ablationLadder(),
-calStrip(),
-h('p', { class: 'note' }, bt
-? 'Out of sample the fitted curve misses by a smaller factor than valuing every protocol at one flat multiple — the size curve carries signal beyond ordering by TVL.'
-: 'Out of sample the fitted curve does not beat a single flat multiple — treat the ranking as a framework, not a forecast.'));
-}
-function calStrip() {
-var c = F.calibration || [];
-return h('div', { class: 'calstrip' },
-h('div', { class: 'calstrip-h' }, 'Printed-rank honesty — share within ×0.5–×2, out of sample'),
-h('div', { class: 'calstrip-row' }, c.map(function (t) {
-return h('div', { class: 'cal-cell' }, h('b', null, (t.pct * 100).toFixed(0) + '%'), h('span', null, t.tier), h('em', null, t.n + ' held out'));
-})));
-}
-function oosItem(lb, value, sub) { return h('div', { class: 'oos-item' }, h('div', { class: 'k-label' }, lb), h('div', { class: 'k-value' }, value), h('div', { class: 'k-sub' }, sub)); }
 function ablationLadder() {
 var rows = (F.ablation || []).map(function (s) {
 return h('tr', null,
@@ -564,9 +537,8 @@ hd = h('tr', null, th('name', 'Protocol'), th('category', 'Category'), h('th', n
 th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mcap / TVL', true));
 } else {
 hd = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
-th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('age_days', 'No tok', true),
-th('ratio', 'Implied', true, { title: 'impliedOf() \u2014 implied launch value' }), th('value', 'Val', true),
-th('p25', 'P25–P75', true), th('token_odds', 'Odds', true), th('net_usd', 'Net$', true), th('net_per_hour', 'Net/HR', true), th('verdict', 'Verdict'));
+th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('token_odds', 'Odds', true),
+th('value', 'Val', true), th('net_usd', 'Net$', true), th('verdict', 'Verdict'));
 }
 var bd = rw.map(function (r) {
 var cls = [];
@@ -592,13 +564,9 @@ if (lv) {
 cls.push(h('td', { class: 'num' }, fmtBoardUsd(r.mcap_usd)));
 cls.push(h('td', { class: 'num ratio' }, r.mcap_usd && r.tvl_usd ? (r.mcap_usd / r.tvl_usd).toFixed(1) + '×' : '—'));
 } else {
-cls.push(h('td', { class: 'num' }, fmtAge(r.age_days)));
-cls.push(h('td', { class: 'num ratio' }, r.effective_multiple !== undefined ? r.effective_multiple.toFixed(1) + '×' : '—'));
+cls.push(h('td', { class: 'num odds', title: 'token odds; also in the detail drawer' }, r.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(r.token_odds) }, (r.token_odds * 100).toFixed(0) + '%')));
 cls.push(valCellX(r, mv));
-cls.push(h('td', { class: 'num band' }, r.band_p25_usd === undefined ? '—' : fmtBandX(r.band_p25_usd, r.band_p75_usd)));
-cls.push(h('td', { class: 'num odds' }, r.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(r.token_odds) }, (r.token_odds * 100).toFixed(0) + '%')));
 cls.push(h('td', { class: 'num netline' }, r.net_usd === undefined ? '—' : fmtNetX(r.net_usd)));
-cls.push(h('td', { class: 'num' }, r.net_per_hour === undefined ? '—' : fmtNetRateX(r.net_per_hour)));
 cls.push(h('td', { class: 'farmcell' },
 h('span', { class: 'badge verdict-' + (r.verdict === undefined ? 'skip' : r.verdict) }, r.verdict === undefined ? '—' : r.verdict),
 h('span', { class: 'plan-net' }, farmNetLine(r))));
