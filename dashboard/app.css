@@ -99,7 +99,7 @@ h4.section{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#3
 footer{margin-top:32px;color:#5f7395;font-size:13.5px;border-top:1px solid #1d3049;padding-top:16px;line-height:1.6}
 .analytics{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:7px;margin:6px 0;align-items:start}
 .analytics .acct-card{grid-column:1/-1}
-.analytics .card:not(.acct-card){height:320px}
+.analytics .card:not(.acct-card){height:300px}
 .analytics .card.valcard{grid-column:1/-1;height:auto;display:grid;grid-template-columns:1.15fr .92fr .95fr;grid-auto-rows:min-content;gap:0 16px;align-items:start}
 .analytics .card.valcard>.card-head{grid-column:1/-1;margin-bottom:2px}
 .analytics .card.valcard>:nth-child(2){grid-column:1;grid-row:2}

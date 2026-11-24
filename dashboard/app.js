@@ -313,7 +313,7 @@ h('p', { html: 'That curve is fitted by least squares on <code>log(mcap)</code> 
 h('p', { html: 'Open any row for its arithmetic, every snapshot field it rests on, and a farm plan with a cost and a time for each step. Protocols whose token already trades sit on the <b>Tokens</b> tab, and the pre-token protocols the rule sets aside (bridges, LSTs, wrappers, exchanges) on <b>Aside</b>, never mixed into the ranking.' }));
 }
 function analytics() {
-return h('section', { class: 'analytics' }, accountingCard(), scatterCard(), walkForward(), verdictCard());
+return h('section', { class: 'analytics' }, accountingCard(), walkForward(), scatterCard(), verdictCard());
 }
 function ledgerOf() { return D.accounting || { total: 0, bars: [] }; }
 function accountingCard() {
