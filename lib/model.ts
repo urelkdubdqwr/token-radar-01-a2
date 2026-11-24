@@ -67,7 +67,7 @@ export const MODELX: ModelConstantsX = {
   maturity_range: 0.2,
   maturity_days: 1095,
   unknown_age_days: 365,
-  category_shrink: 4,
+  category_shrink: 5,
 };
 
 /** How the model identifies itself: the dashboard displays it and the rule text cites it. */
@@ -292,8 +292,8 @@ export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX
     alpha: Math.exp(aX),
     elasticity: bX,
     comparables: nX,
-    err_lo: Math.exp(atX(0.125)),
-    err_hi: Math.exp(atX(0.875)),
+    err_lo: Math.exp(atX(0.10)),
+    err_hi: Math.exp(atX(0.90)),
     median_abs_error: Math.exp(medianX(residualX.map((rX) => Math.abs(rX))) ?? 0),
     by_category: byCategoryX,
     min_peers: MIN_PEERSX,
