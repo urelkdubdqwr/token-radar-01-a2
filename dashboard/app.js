@@ -505,6 +505,7 @@ if (ky === 'value') return r.implied_value_usd === undefined ? r.mcap_usd || 0 :
 if (ky === 'ratio') return r.effective_multiple === undefined ? (r.implied_value_usd && r.tvl_usd ? r.implied_value_usd / r.tvl_usd : 0) : r.effective_multiple;
 if (ky === 'band') return r.band_hi_usd === undefined ? -Infinity : r.band_hi_usd;
 if (ky === 'p25') return r.band_p75_usd === undefined ? -Infinity : r.band_p75_usd;
+if (ky === 'launch') return (r.implied_value_usd && r.token_odds) ? r.implied_value_usd / r.token_odds : -Infinity;
 if (ky === 'verdict') return r.net_usd === undefined ? -Infinity : r.net_usd;
 return r[ky] === null || r[ky] === undefined ? -Infinity : r[ky];
 }
@@ -515,6 +516,20 @@ return h('th', attrMerge({ class: 'sortable' + (num ? ' num' : '') + (cue ? ' ac
 function attrMerge(a, b) {
 if (b) for (var k in b) a[k] = b[k];
 return a;
+}
+function oddsBarCellX(r) {
+var o = r.token_odds;
+if (o === undefined) return h('td', { class: 'num odds' }, '\u2014');
+var pct = Math.max(0, Math.min(100, o * 100));
+var bg = 'linear-gradient(90deg,rgba(56,224,200,.35) 0 ' + pct.toFixed(1) + '%,transparent ' + pct.toFixed(1) + '% 100%)';
+return h('td', { class: 'num odds bar', title: 'token odds: ' + (o * 100).toFixed(1) + '% (base ' + (((D.token_odds && D.token_odds.base_rate) || 0) * 100).toFixed(0) + '%)' },
+h('span', { class: 'obar', style: 'background-image:' + bg + ';' }, h('b', null, (o * 100).toFixed(0) + '%')));
+}
+function farmCompactX(r) {
+if (r === null || r === undefined || r.net_usd === undefined) return '';
+var rate = r.net_per_hour;
+var rs = (rate >= 0 ? '+' : '\u2212') + '$' + Math.abs(rate).toFixed(1) + '/h';
+return fmtNetX(r.net_usd) + ' \u00b7 ' + rs;
 }
 function valCellX(r, mv) {
 var v = r.implied_value_usd;
@@ -537,7 +552,8 @@ th('change_7d', '7d', true), th('mcap_usd', 'Market cap', true), th('ratio', 'Mc
 } else {
 hd = h('tr', null, h('th', { class: 'num' }, '#'), th('name', 'Protocol'), th('category', 'Cat'), h('th', null, 'Chains'),
 th('tvl_usd', 'TVL', true), th('change_7d', '7d', true), th('token_odds', 'Odds', true),
-th('value', 'Val', true), th('net_usd', 'Net$', true), th('verdict', 'Verdict'));
+th('launch', 'If launches', true), th('value', 'Implied', true), th('p25', 'P25\u2013P75', true),
+th('verdict', 'Verdict \u00b7 $ net \u00b7 /hr'));
 }
 var bd = rw.map(function (r) {
 var cls = [];
@@ -563,12 +579,13 @@ if (lv) {
 cls.push(h('td', { class: 'num' }, fmtBoardUsd(r.mcap_usd)));
 cls.push(h('td', { class: 'num ratio' }, r.mcap_usd && r.tvl_usd ? (r.mcap_usd / r.tvl_usd).toFixed(1) + '×' : '—'));
 } else {
-cls.push(h('td', { class: 'num odds', title: 'token odds; also in the detail drawer' }, r.token_odds === undefined ? '—' : h('span', { class: 'odds-pill odds-' + oddsBand(r.token_odds) }, (r.token_odds * 100).toFixed(0) + '%')));
+cls.push(oddsBarCellX(r));
+cls.push(h('td', { class: 'num launch', title: 'implied value if the token launches (implied / token odds)' }, (r.implied_value_usd && r.token_odds) ? fmtShortUsdX(r.implied_value_usd / r.token_odds) : '—'));
 cls.push(valCellX(r, mv));
-cls.push(h('td', { class: 'num netline' }, r.net_usd === undefined ? '—' : fmtNetX(r.net_usd)));
-cls.push(h('td', { class: 'farmcell' },
+cls.push(h('td', { class: 'num p25', title: 'the stated interquartile band of the implied value' }, (r.band_p25_usd !== undefined && r.band_p75_usd !== undefined) ? fmtShortUsdX(r.band_p25_usd) + '\u2013' + fmtShortUsdX(r.band_p75_usd) : '—'));
+cls.push(h('td', { class: 'farmcell', title: planLineX(r) || 'net of the plan costs' },
 h('span', { class: 'badge verdict-' + (r.verdict === undefined ? 'skip' : r.verdict) }, r.verdict === undefined ? '—' : r.verdict),
-h('span', { class: 'plan-net' }, farmNetLine(r))));
+h('span', { class: 'farm-net' }, farmCompactX(r))));
 }
 return h('tr', { class: st.selected && st.selected.slug === r.slug ? 'sel' : '', onclick: function () { st.selected = r; paint(); openDrawer(); } }, cls);
 });
