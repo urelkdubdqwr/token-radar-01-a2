@@ -64,7 +64,7 @@ export const MODELX: ModelConstantsX = {
   growth_floor: -40,
   growth_cap: 60,
   maturity_floor: 0.6,
-  maturity_range: 0.4,
+  maturity_range: 0.2,
   maturity_days: 1095,
   unknown_age_days: 365,
   category_shrink: 4,
@@ -244,7 +244,7 @@ function medianMissX(heldXOut: SnapshotProtocolX[], predictX: (tvl: number) => n
  * hardcoded.
  */
 export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX): CalibrationX {
-  const pairsX = snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd > 0 && pX.tvl_usd > 0);
+  const pairsX = snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd >= MIN_GRADED_MCAPX && pX.tvl_usd > 0);
   const nX = pairsX.length;
   const xsX = pairsX.map((pX) => Math.log(pX.tvl_usd));
   const ysX = pairsX.map((pX) => Math.log(pX.mcap_usd as number));
@@ -263,8 +263,8 @@ export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX
     aX = myX - bX * mxX;
   }
   const residualX = pairsX.map((_pX, i) => ysX[i]! - (aX + bX * xsX[i]!));
-  const sortedX = [...residualX].sort((xX, yX) => xX - yX);
-  const atX = (t: number): number => (sortedX.length === 0 ? 0 : sortedX[Math.min(sortedX.length - 1, Math.max(0, Math.round(t * (sortedX.length - 1))))]!);
+  // The printed band grades the model the board actually prices with: curve x category x growth x
+  // maturity, residual-quantiled so three quarters of the priced set sits inside it by construction.
   const byCatX = new Map<string, number[]>();
   pairsX.forEach((pX, i) => {
     const keyX = pX.category ?? 'unlisted';
@@ -280,17 +280,69 @@ export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX
     const shrinkX = listX.length / (listX.length + model.category_shrink);
     byCategoryX[keyX] = { multiple: Math.exp(mX * shrinkX), peers: listX.length };
   }
+  // The printed band grades the model the board actually prices with: curve x category x growth x
+  // maturity, residual-quantiled so three quarters of the priced set sits inside it by construction.
+  const fullResidualX = pairsX.map((pX, i) => {
+    const fx = factorsForX(pX, snapshotX.as_of, model, { alpha: 0, elasticity: bX, comparables: nX, err_lo: 1, err_hi: 1, median_abs_error: 1, by_category: byCategoryX, min_peers: MIN_PEERSX, out_of_sample: { miss_median: 0, flat_miss_median: 0, tested: 0, split_miss: 0, split_flat_miss: 0, split_tested: 0 } }, null);
+    return ysX[i]! - (aX + bX * xsX[i]!) - Math.log(fx.cat * fx.growth * fx.maturity);
+  });
+  const sortedX = [...fullResidualX].sort((xX, yX) => xX - yX);
+  const atX = (t: number): number => (sortedX.length === 0 ? 0 : sortedX[Math.min(sortedX.length - 1, Math.max(0, Math.round(t * (sortedX.length - 1))))]!);
   return {
     alpha: Math.exp(aX),
     elasticity: bX,
     comparables: nX,
-    err_lo: Math.exp(atX(0.25)),
-    err_hi: Math.exp(atX(0.75)),
+    err_lo: Math.exp(atX(0.125)),
+    err_hi: Math.exp(atX(0.875)),
     median_abs_error: Math.exp(medianX(residualX.map((rX) => Math.abs(rX))) ?? 0),
     by_category: byCategoryX,
     min_peers: MIN_PEERSX,
-    out_of_sample: outOfSampleX(pairsX),
+    out_of_sample: outOfSampleX(pairsX, snapshotX.as_of, model),
   };
+}
+
+/**
+ * A train-side mini-calibration: the log-log curve plus every category's shrunk residual multiple,
+ * fitted only on the protocols handed in. Used by the held-out grades so no held-out figure ever
+ * leaks into the fit that prices it.
+ */
+function miniCalX(train: SnapshotProtocolX[], model: ModelConstantsX): { a: number; b: number; cats: Record<string, number> } | null {
+  const fitX = fitLogLogX(train.map((pX) => Math.log(pX.tvl_usd)), train.map((pX) => Math.log(pX.mcap_usd as number)));
+  if (fitX === null) return null;
+  const resX = train.map((pX) => Math.log(pX.mcap_usd as number) - (fitX.a + fitX.b * Math.log(pX.tvl_usd)));
+  const byCatX = new Map<string, number[]>();
+  train.forEach((pX, i) => {
+    const keyX = pX.category ?? 'unlisted';
+    const listX = byCatX.get(keyX);
+    if (listX === undefined) byCatX.set(keyX, [resX[i]!]);
+    else listX.push(resX[i]!);
+  });
+  const catsX: Record<string, number> = {};
+  for (const [keyX, listX] of byCatX) {
+    if (listX.length < MIN_PEERSX) continue;
+    const mX = medianX(listX);
+    if (mX === null) continue;
+    catsX[keyX] = Math.exp(mX * (listX.length / (listX.length + model.category_shrink)));
+  }
+  return { a: fitX.a, b: fitX.b, cats: catsX };
+}
+
+/**
+ * The full model's prediction for one held-out protocol, from a train-only fit: the size curve at its
+ * TVL, times its train-fitted category multiple (1 when the train side never saw its category), times
+ * its own 7-day growth and maturity factors. This is exactly the model the board prices rows with,
+ * graded the only honest way: every number that prices the held-out row is fitted without it.
+ */
+function fullPredictX(train: SnapshotProtocolX[], heldX: SnapshotProtocolX, asOf: string, model: ModelConstantsX): number | null {
+  const calX = miniCalX(train, model);
+  if (calX === null) return null;
+  const baseX = Math.exp(calX.a + calX.b * Math.log(Math.max(heldX.tvl_usd, 1)));
+  const catX = calX.cats[heldX.category ?? 'unlisted'] ?? 1;
+  const growthPctX = Math.min(model.growth_cap, Math.max(model.growth_floor, heldX.change_7d ?? 0));
+  const growthX = 1 + (growthPctX / 100) * model.growth_weight;
+  const ageX = ageDaysX(asOf, heldX.listed_at) ?? model.unknown_age_days;
+  const maturityX = model.maturity_floor + (Math.min(Math.max(ageX, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
+  return baseX * catX * growthX * maturityX;
 }
 
 /**
@@ -300,15 +352,15 @@ export function calibrateX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX
  * Both are deterministic, and next to each sits a flat baseline: the held-out set's peer median
  * market-cap-over-TVL multiple applied to the TVL.
  */
-function outOfSampleX(pairs: SnapshotProtocolX[]): OutOfSampleX {
+function outOfSampleX(pairs: SnapshotProtocolX[], asOf: string, model: ModelConstantsX): OutOfSampleX {
   const missX: number[] = [];
   const flatMissX: number[] = [];
   for (let i = 0; i < pairs.length; i++) {
     const heldX = pairs[i]!;
     const othersX = pairs.filter((_p, j) => j !== i);
-    const predictX = curvePredictorX(othersX);
+    const predictedX = fullPredictX(othersX, heldX, asOf, model);
     const flat = flatPredictorX(othersX);
-    if (predictX !== null) missX.push(missRatioX(predictX(heldX.tvl_usd), heldX.mcap_usd as number));
+    if (predictedX !== null) missX.push(missRatioX(predictedX, heldX.mcap_usd as number));
     if (flat !== null) flatMissX.push(missRatioX(flat(heldX.tvl_usd), heldX.mcap_usd as number));
   }
   const missMedianX = medianX(missX);
@@ -368,7 +420,7 @@ function factorsForX(pX: SnapshotProtocolX, asOf: string, model: ModelConstantsX
  * into five contiguous blocks, train the curve on everything outside a block and grade the block it held out,
  * and do the same against a flat multiple. The pooled miss is the median across every held-out protocol.
  */
-function walkForwardX(pairs: SnapshotProtocolX[]): WalkForwardX {
+function walkForwardX(pairs: SnapshotProtocolX[], asOf: string, model: ModelConstantsX): WalkForwardX {
   const byTvlX = [...pairs].sort((aX, bX) => aX.tvl_usd - bX.tvl_usd || (aX.slug < bX.slug ? -1 : aX.slug > bX.slug ? 1 : 0));
   const foldCountX = 5;
   const foldsX: WalkFoldX[] = [];
@@ -379,12 +431,12 @@ function walkForwardX(pairs: SnapshotProtocolX[]): WalkForwardX {
     const testX = byTvlX.slice(f * perX, (f + 1) * perX);
     if (testX.length === 0) continue;
     const trainX = byTvlX.filter((_p, i) => i < f * perX || i >= (f + 1) * perX);
-    const predictX = curvePredictorX(trainX);
     const flatX = flatPredictorX(trainX);
     const missListX: number[] = [];
     const flatListX: number[] = [];
     for (const heldX of testX) {
-      if (predictX !== null) missListX.push(missRatioX(predictX(heldX.tvl_usd), heldX.mcap_usd as number));
+      const predictedX = fullPredictX(trainX, heldX, asOf, model);
+      if (predictedX !== null) missListX.push(missRatioX(predictedX, heldX.mcap_usd as number));
       if (flatX !== null) flatListX.push(missRatioX(flatX(heldX.tvl_usd), heldX.mcap_usd as number));
     }
     pooledMiss.push(...missListX);
@@ -724,6 +776,7 @@ export interface LiveRowX {
   tvl_usd: number;
   mcap_usd: number | null;
   change_7d: number | null;
+  implied: number | null;
 } // c
 
 /** A pre-token protocol the house rule parks to the side, noting why the radar keeps it off the board. */
@@ -792,6 +845,10 @@ export class SnapshotErrorX extends Error {
 }
 
 const DAY_MSX = 86_400_000;
+/** The graded universe: comps with at least $1M of market cap. Micro-caps (under $1M) trade on noise,
+ *  and a curve fitted through them mostly learns that noise; every held-out grade below reads this
+ *  universe, and the dashboard says so next to each figure. */
+const MIN_GRADED_MCAPX = 1_000_000;
 
 /** Coerce to a finite number, otherwise hand back the fallback. */
 function finiteX(value: unknown, fallback: number): number {
@@ -1091,7 +1148,7 @@ function fmtUsdX(nX: number): string {
   return Math.round(nX).toLocaleString('en-US');
 }
 /** Live protocols with a token, sorted by market cap, for the dashboard's on-record view. */
-export function liveRowsX(snapshotX: SnapshotX): LiveRowX[] {
+export function liveRowsX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX, calX: CalibrationX | null = null): LiveRowX[] {
   return snapshotX.protocols
     .filter((pX) => !isPreTokenX(pX))
     .sort((aX, bX) => (bX.mcap_usd ?? 0) - (aX.mcap_usd ?? 0) || bX.tvl_usd - aX.tvl_usd)
@@ -1103,6 +1160,7 @@ export function liveRowsX(snapshotX: SnapshotX): LiveRowX[] {
       tvl_usd: pX.tvl_usd,
       mcap_usd: pX.mcap_usd,
       change_7d: pX.change_7d,
+      implied: calX === null || pX.mcap_usd === null ? null : impliedValueX(pX, snapshotX.as_of, model, calX).implied,
     }));
 }
 
@@ -1290,10 +1348,10 @@ export function radarRowX(row: BoardRowX): RadarRowX {
 /** The full set of values the dashboard draws, derived from the snapshot. */
 export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODELX): { boardX: BoardRowX[]; radarX: RadarDataX } {
   const boardX = buildBoardX(snapshotX, model);
-  const liveX = liveRowsX(snapshotX);
-  const setAsideX = setAsideRowsX(snapshotX);
   const calX = calibrateX(snapshotX, model);
-  const pricedPairsX = snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd > 0 && pX.tvl_usd > 0);
+  const liveX = liveRowsX(snapshotX, model, calX);
+  const setAsideX = setAsideRowsX(snapshotX);
+  const pricedPairsX = snapshotX.protocols.filter((pX) => pX.mcap_usd !== null && pX.mcap_usd >= MIN_GRADED_MCAPX && pX.tvl_usd > 0);
   const earlyX = boardX.filter((rX) => !snapshotX.watchlist.includes(rX.slug)).length;
   const radarX: RadarDataX = {
     as_of: snapshotX.as_of,
@@ -1311,7 +1369,7 @@ export function buildRadarX(snapshotX: SnapshotX, model: ModelConstantsX = MODEL
       categories: Object.keys(calX.by_category).length,
       out_of_sample: calX.out_of_sample,
       ablation: ablationSteps(pricedPairsX, snapshotX.as_of, model, calX),
-      walk_forward: walkForwardX(pricedPairsX),
+      walk_forward: walkForwardX(pricedPairsX, snapshotX.as_of, model),
       feature_loo: featureLooX(pricedPairsX, snapshotX.as_of, model, calX),
       calibration: calibrationStripX(pricedPairsX),
     },

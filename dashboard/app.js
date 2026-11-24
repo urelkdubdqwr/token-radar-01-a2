@@ -246,12 +246,11 @@ verifyPill('checkBoard(): ' + cb.ok + '/' + cb.n + ' rows equal board.json', 'ch
 verifyPill('Watchlist ' + wl.ok + '/' + wl.n + ' on the board', 'every slug on the snapshot watchlist is carried on the ranked board and the set-aside set'));
 }
 function rangeHolds() {
-var priced = (D.live || []).filter(function (p) { return p.tvl_usd > 0 && p.mcap_usd > 0; });
+var priced = (D.live || []).filter(function (p) { return p.tvl_usd > 0 && p.mcap_usd >= 1000000 && p.implied > 0; });
 if (!priced.length) return { pct: 0, n: 0, inb: 0 };
 var inb = 0;
 priced.forEach(function (p) {
-var curve = F.alpha * Math.pow(p.tvl_usd, F.elasticity);
-var ratio = p.mcap_usd / curve;
+var ratio = p.mcap_usd / p.implied;
 if (ratio >= F.err_lo && ratio <= F.err_hi) inb++;
 });
 return { pct: Math.round((inb / priced.length) * 100), n: priced.length, inb: inb };
@@ -266,8 +265,8 @@ var o = (F.out_of_sample || {});
 var vc = verdictCounts();
 var rh = rangeHolds();
 return h('section', { class: 'kpis' },
-kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2) + ' \u00b7 ' + F.comparables + ' comps', 'accent'),
-kpi(rh.pct + '%', 'range holds', 'rows inside the interquartile band', ''),
+kpi('\u00d7' + (o.miss_median || 0).toFixed(2), 'value miss, held out', 'LOO on ' + F.comparables + ' $1M+ comps, flat \u00d7' + (o.flat_miss_median || 0).toFixed(2), 'accent'),
+kpi(rh.pct + '%', 'range holds', '$1M+ comps inside the band, quantile-calibrated', ''),
 kpi(vc.farm + ' FARM', 'worth farming', vc.marginal + ' MARGINAL \u00b7 ' + vc.skip + ' SKIP', 'ok'),
 kpi(fmtBigUsdX(impliedTotal()), 'implied value', 'sum of the ranked board', ''),
 bestKpi(),
