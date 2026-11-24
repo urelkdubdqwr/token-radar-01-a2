@@ -589,7 +589,7 @@ h('span', { class: 'farm-net' }, farmCompactX(r))));
 }
 return h('tr', { class: st.selected && st.selected.slug === r.slug ? 'sel' : '', onclick: function () { st.selected = r; paint(); openDrawer(); } }, cls);
 });
-return h('div', { class: 'board' }, h('table', null, h('thead', null, hd), h('tbody', null, bd)));
+return h('div', { class: 'board' }, h('table', null, h('colgroup', null, [3.5,15,7.5,8.5,7.5,5.5,7,9,8.5,11,17].map(function (w) { return h('col', { style: 'width:' + w + '%' }); })), h('thead', null, hd), h('tbody', null, bd)));
 }
 var dw, sm;
 function buildDrawer() {
